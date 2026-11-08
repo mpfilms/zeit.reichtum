@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 scripts/*)",
+      "Bash(bash tests/run_tests.sh)",
+      "Read",
+      "Edit(output/**)",
+      "Write(output/**)"
+    ]
+  }
+}

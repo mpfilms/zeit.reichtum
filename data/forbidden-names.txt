@@ -1,0 +1,3 @@
+# Namen, die NIEMALS im Content stehen dürfen (Name des Erstellers, Kursname, Produktname).
+# Eine Zeile pro Name oder Schreibweise, Groß-/Kleinschreibung egal. Zeilen mit # werden ignoriert.
+# >>> BITTE AUSFÜLLEN. Solange diese Datei leer ist, kann die QA den Ersteller-/Kursnamen nicht prüfen. <<<
