@@ -12,7 +12,7 @@ Dieses Repo automatisiert den 11-Agenten-Workflow für den Instagram-Account **@
 - Qualitätssicherung ist doppelt: Agent 10 (inhaltlich) **und** `scripts/qa_check.py` (deterministisch). Ein Post wird erst ausgegeben, wenn `qa_check.py --final` ohne `FAIL` durchläuft.
 - Zufall (Pitch/Nurture, Caption-Variante) kommt aus `scripts/roll.py`, nicht aus dem Bauchgefühl.
 - Gedächtnis des Workflows: `data/content-plan.md` (Plan), `data/prompt-history.jsonl` (bisherige Bild-/Video-Variablen, Motive, Audio). Ohne dieses Gedächtnis können Agent 4, 5 und 6 Wiederholungen nicht vermeiden.
-- Fertige Posts liegen in `output/<slot>.md`.
+- Fertige Posts liegen in `output/<slot>.md`, die mit Google Gemini (oder Imagen 4) erzeugten Bilder in `output/<slot>/` (Schritt 4b im Skill `create-post`, erst nach bestandener QA).
 
 ## Harte Regeln (gelten für alle Agenten)
 1. Blacklist niemals verletzen. Kein Name des Erstellers, kein Kursname (`data/forbidden-names.txt`).
@@ -24,4 +24,5 @@ Dieses Repo automatisiert den 11-Agenten-Workflow für den Instagram-Account **@
 - `python3 scripts/qa_check.py output/<slot>.md [--final] [--log]` – deterministische Qualitätsprüfung
 - `python3 scripts/plan.py generate | slot T05-R1 | set-hook T05-R1 "Idee"` – Content-Plan
 - `python3 scripts/roll.py pitch-nurture | caption-variant` – Zufall 50/50
+- `python3 scripts/render_images.py output/<slot>.md [--slides] [--model gemini-pro|gemini-flash|imagen-4] [--list-models] [--count 2] [--dry-run]` – Bilder direkt erzeugen (Schlüssel `GEMINI_API_KEY` in `.env`)
 - `python3 scripts/validate_repo.py` und `bash tests/run_tests.sh` – Selbsttest des Repos

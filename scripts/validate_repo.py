@@ -58,7 +58,7 @@ if extra:
 
 # Skills
 skills = {}
-for d in sorted((ROOT / ".claude" / "skills").iterdir()):
+for d in sorted(x for x in (ROOT / ".claude" / "skills").iterdir() if x.is_dir()):
     p = d / "SKILL.md"
     if not p.exists():
         err(f"{d.name}: SKILL.md fehlt")

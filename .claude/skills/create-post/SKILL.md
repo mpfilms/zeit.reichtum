@@ -63,7 +63,16 @@ Rufe `zr-10-quality-assurance` mit dem Dateipfad auf. Danach selbst:
 - Bei `FAIL`: gib die Meldungen an `zr-10-quality-assurance` zurück bzw. den verursachenden Agenten (z. B. Agent 6 bei Formeln/Wiederholungen) und baue neu; höchstens 2 Runden, dann melde ehrlich, was offen ist. **Gib nie einen Post als „geprüft" aus, wenn `--final` fehlgeschlagen ist.**
 - `--log` schreibt Motiv, Audio und Variablen in `data/prompt-history.jsonl` (nur bei bestandener QA). So wiederholt sich nichts im nächsten Post.
 
+## 4b. Bilder erzeugen (Google Gemini / Imagen 4)
+Erst **nach** bestandenem `--final`. Gibt es keinen API-Schlüssel (`GEMINI_API_KEY` in `.env`), überspringe den Schritt und sage es Pamina in einem Satz.
+- Reel: `python3 scripts/render_images.py output/<SLOT>.md` → `output/<SLOT>/bild-1.png …` (Hintergrund für CapCut).
+- Karussell und Story-Sequenz: `python3 scripts/render_images.py output/<SLOT>.md --slides` → zusätzlich fertige Slides mit Text in `output/<SLOT>/slides/`.
+- Vorgaben von Pamina (Modell, Anzahl, Seitenverhältnis) über `--model`, `--count`, `--aspect` durchreichen.
+- Sieh dir `bild-1.png` an (Read), bevor du es meldest: keine Menschen, keine Hände, kein Text im Bild, Erdtöne erhalten. Ist eines davon verletzt, rendere einmal neu und nimm dann das beste Bild mit `--base`.
+- Standard ist `gemini-pro` (`gemini-3-pro-image`); `--model gemini-flash` ist günstiger. Meldet die API 404, zeigt `--list-models` die verfügbaren Modelle.
+- Schlägt die API fehl oder filtert sie das Bild, melde die Fehlermeldung ehrlich; der Post bleibt trotzdem gültig (der Prompt steht in Agent 6).
+
 ## 5. Ausgabe an Pamina
 - Ein Satz vorab zu Annahmen (z. B. aus welchem Plan-Slot Typ/Fokus stammen).
 - Danach die Post-Datei **vollständig und unverändert** in der Reihenfolge 1, 2 & 3, 4, 5, 6, 7, 8, 9, 10 (bei Pitch + 11), gut lesbar auf dem Handy (die Codeblöcke der Prompts bleiben Codeblöcke).
-- Ohne HTML-Kommentare. Am Ende der Hinweis, wo die Datei liegt, und was als Nächstes passt (z. B. „Reel 2 von Tag 5").
+- Ohne HTML-Kommentare. Am Ende der Hinweis, wo die Datei und die Bilder liegen (oder warum keine erzeugt wurden), und was als Nächstes passt (z. B. „Reel 2 von Tag 5").

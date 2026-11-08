@@ -3,3 +3,6 @@ __pycache__/
 *.pyc
 .env
 .claude/settings.local.json
+
+# erzeugte Bilder (groß, jederzeit neu renderbar)
+output/**/*.png

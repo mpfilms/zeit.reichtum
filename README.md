@@ -15,6 +15,16 @@ claude                       # open Claude Code in this folder
 ```
 Before the first real run, **fill `data/forbidden-names.txt`** with the creator's name and the course name (one per line). The QA cannot check those names otherwise and prints a warning.
 
+## Image generation (Google Gemini / Imagen 4)
+```bash
+cp .env.example .env                      # add GEMINI_API_KEY from Google AI Studio
+python3 -m pip install -r requirements.txt  # Pillow, only needed for --slides
+python3 scripts/render_images.py --list-models   # which image models your key may use
+python3 scripts/render_images.py output/T03-K.md --slides
+```
+Default model: `gemini-3-pro-image` (`--model gemini-flash` is cheaper). Image models need a Google AI Studio project with **billing enabled**; on the free tier the image quota is 0.
+Runs only after `qa_check.py --final` passes. The darkening formula stays verbatim; only the Midjourney parameters are translated (`--ar 9:16` → `aspectRatio`, people generation disabled). Put `PlayfairDisplay-Bold.ttf` and `Montserrat-Italic.ttf` into `assets/fonts/` (Georgia is the fallback).
+
 ## How it works
 ```
  you ──► create-post (skill, main session = orchestrator)
@@ -45,7 +55,8 @@ The orchestrator assembles `output/<slot>.md`, runs `qa_check.py --final --log` 
 | `data/blacklist.txt`, `data/forbidden-names.txt` | machine-checked word lists |
 | `scripts/qa_check.py` | deterministic QA (see below) |
 | `scripts/plan.py`, `scripts/roll.py` | plan blueprint, real 50/50 randomness |
-| `scripts/validate_repo.py`, `tests/` | self-tests (35 tests); CI in `.github/workflows/ci.yml` |
+| `scripts/render_images.py` | renders the Agent-6 prompt with Google Imagen 4 / Gemini into `output/<slot>/`; `--slides` adds the slide texts (Agent 9 style) |
+| `scripts/validate_repo.py`, `tests/` | self-tests (43 tests); CI in `.github/workflows/ci.yml` |
 
 ## What the deterministic QA enforces
 Blacklist · forbidden names · exact caption header · ≤ 2 hashtags, never a block · hook ≤ 2 sentences · quote has source and "sinngemäß" · pitch = exactly one keyword + Manychat flow, nurture = no keyword/flow and ends with a community question · caption variant (a = exactly 4 sentences, CTA 4th; b = 4 ✨ lines; Sunday ≤ 2 sentences) · both darkening formulas verbatim, image formula directly before `--ar 9:16 --style raw --v 6.1` with nothing after, video formula at the end, no people, static camera · Agent-6 variables listed first and not repeated from the history · CapCut specs · DM transparency + affiliate note · money/time/member numbers raise a **WARN** for human review.
