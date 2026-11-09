@@ -2,6 +2,7 @@
 """Deterministische Qualitätsprüfung für @zeit.reichtum-Posts (Hilfsskript für Agent 10).
 
   qa_check.py output/T05-R1.md [--final] [--checklist] [--log] [--history PFAD] [--slug NAME] [--names PFAD]
+  qa_check.py output/woche-2026-KW47.md --week [--log]   Wochen-Prompts (9 Fotos, 12 Videos) prüfen
 
 --final      verlangt zusätzlich den Abschnitt "Agent 10" (fertige Checkliste)
 --checklist  gibt die Checkliste (✅/⚠️/❌) als Markdown aus
@@ -121,6 +122,162 @@ def parse_vars(sec6):
         r"(?m)^\s*\d\.\s*\*\*(Licht/Tageszeit|Requisit|Stoff-Farbe|Kamera/Bewegung):\*\*[ \t]*(.+?)[ \t]*$",
         sec6 or ""))
     return found
+
+
+def check_image_prompt(R, g, p, label=""):
+    p = p.strip()
+    if p.count(IMG_FORMULA) != 1:
+        R.fail(g, f"{label}Bild-Formel nicht (genau einmal) wörtlich im Midjourney-Prompt")
+    else:
+        tail = p.split(IMG_FORMULA, 1)[1].strip()
+        if tail != PARAMS:
+            R.fail(g, f"{label}Nach der Bild-Formel müssen direkt die Parameter '{PARAMS}' folgen (gefunden: {tail!r})")
+    bad = people_words(p)
+    if bad:
+        R.fail(g, f"{label}Midjourney-Prompt erwähnt Menschen/Körperteile: {bad}")
+    if "negative space" not in p.lower():
+        R.fail(g, f"{label}Midjourney-Prompt verlangt keinen 'negative space' für den Text")
+
+
+def check_video_prompt(R, g, b, label=""):
+    if not b.strip().endswith(VID_FORMULA):
+        R.fail(g, f"{label}Motion-Prompt endet nicht wörtlich mit der Video-Formel")
+    if re.search(r"camera (move|pan|zoom|dolly|tilt)", b.lower()):
+        R.fail(g, f"{label}Motion-Prompt bewegt die Kamera (Kamera muss statisch bleiben)")
+
+
+def people_words(p):
+    pre = re.sub(r"\b(no|without|zero)\s+(people|persons?|humans?|figures?)\b", "", p.lower())
+    pre = pre.replace(IMG_FORMULA.lower(), "").replace(VID_FORMULA.lower(), "")
+    return sorted(set(re.findall(
+        r"\b(people|person|woman|women|man|men|child|children|girl|boy|baby|mother|mom|face|faces|hands?)\b", pre)))
+
+
+# ---------- Wochen-Datei (Medien-Pool) ----------
+WEEK_HEAD = re.compile(r"(?m)^### +(\S+) · (Foto|Video) · Tag (\d+)(?: · (.*))?$")
+
+
+def parse_week(text):
+    """→ (kw, items); item = dict(id, art, tag, slots, vars, ort, motiv, datei, prompt)."""
+    text = strip_comments(text)
+    m = re.search(r"(?m)^# Wochen-Medien (\d{4}-KW\d\d)", text)
+    kw = m.group(1) if m else None
+    heads = list(WEEK_HEAD.finditer(text))
+    items = []
+    for i, h in enumerate(heads):
+        body = text[h.end(): heads[i + 1].start() if i + 1 < len(heads) else len(text)]
+        body = body.split("\n## ", 1)[0]
+        codes = re.findall(r"```[^\n]*\n(.*?)```", body, re.S)
+        items.append({
+            "id": h.group(1), "art": h.group(2).lower(), "tag": int(h.group(3)),
+            "slots": [s.strip() for s in (h.group(4) or "").split("+") if s.strip()],
+            "vars": parse_vars(body), "ort": field(body, "Ort/Szene"), "motiv": field(body, "Motiv"),
+            "datei": (field(body, "Dateiname") or "").strip().strip("`"),
+            "prompt": codes[0].strip() if len(codes) == 1 else None, "n_codes": len(codes),
+        })
+    return kw, items
+
+
+def run_week_checks(text, args):
+    R = Report()
+    kw, items = parse_week(text)
+    g = R.group("Wochen-Datei vollständig (KW, alle Fotos und Videos der Zuteilung)")
+    if not kw:
+        R.fail(g, "Titelzeile '# Wochen-Medien 2026-KWxx …' fehlt")
+    alloc = ROOT / "medien" / (kw or "-") / "woche.json"
+    if alloc.exists():
+        w = json.loads(alloc.read_text(encoding="utf-8"))
+        want = [f["id"] for f in w["fotos"]] + [v["id"] for v in w["videos"]]
+        have = [it["id"] for it in items]
+        for i in want:
+            if i not in have:
+                R.fail(g, f"{i} fehlt")
+        for i in have:
+            if i not in want:
+                R.fail(g, f"{i} gehört nicht zur Zuteilung von {kw}")
+    else:
+        R.warn(g, f"Keine Zuteilung medien/{kw}/woche.json gefunden (media.py init)")
+    if len({it["id"] for it in items}) != len(items):
+        R.fail(g, "Doppelte IDs")
+
+    g = R.group("Je Foto/Video: Variablen, Ort, Dateiname und genau ein Prompt mit wörtlicher Formel")
+    for it in items:
+        lab = f"{it['id']}: "
+        miss = [n for n in VAR_NAMES if n not in it["vars"]]
+        if miss:
+            R.fail(g, f"{lab}Variablen fehlen: {miss}")
+        if not it["ort"]:
+            R.fail(g, f"{lab}'- **Ort/Szene:**' fehlt")
+        if it["n_codes"] != 1:
+            R.fail(g, f"{lab}genau ein Prompt-Codeblock erwartet (gefunden: {it['n_codes']})")
+            continue
+        if it["art"] == "foto":
+            if not re.fullmatch(re.escape(it["id"]) + r"_[a-z0-9-]+", it["datei"]):
+                R.fail(g, f"{lab}Dateiname muss '{it['id']}_ort-licht-farbe' sein (gefunden: {it['datei']!r})")
+            check_image_prompt(R, g, it["prompt"], lab)
+        else:
+            slot = it["id"].rsplit("-", 2)
+            if it["datei"] != f"{slot[-2]}-{slot[-1]}":
+                R.fail(g, f"{lab}Dateiname muss der Slot sein ({slot[-2]}-{slot[-1]}), gefunden: {it['datei']!r}")
+            if "--ar" in it["prompt"]:
+                R.fail(g, f"{lab}Video-Prompt enthält Midjourney-Parameter")
+            check_video_prompt(R, g, it["prompt"], lab)
+            if people_words(it["prompt"]):
+                R.fail(g, f"{lab}Video-Prompt erwähnt Menschen/Körperteile: {people_words(it['prompt'])}")
+            if len(it["prompt"].split()) < len(VID_FORMULA.split()) + 25:
+                R.warn(g, f"{lab}Video-Prompt beschreibt die Szene kaum (Text-to-Video braucht Ort, Licht, Requisit, Bewegung)")
+
+    g = R.group("Abwechslung: Karussell-Fotos klar verschieden, keine Wiederholung in der Woche und zur Historie")
+    fotos = [it for it in items if it["art"] == "foto"]
+    by_day = {}
+    for it in fotos:
+        by_day.setdefault(it["tag"], []).append(it)
+    for day, pair in by_day.items():
+        if len(pair) == 2:
+            a, b = pair
+            for what, x, y in (("Ort/Szene", a["ort"], b["ort"]),
+                               ("Stoff-Farbe", a["vars"].get("Stoff-Farbe"), b["vars"].get("Stoff-Farbe")),
+                               ("Requisit", a["vars"].get("Requisit"), b["vars"].get("Requisit"))):
+                if x and y and norm(x) == norm(y):
+                    R.fail(g, f"Karussell Tag {day}: {a['id']} und {b['id']} haben dieselbe {what} ({x!r})")
+    seen = {}
+    for it in items:
+        for key, name in zip(VAR_KEYS[:3], VAR_NAMES[:3]):
+            v = it["vars"].get(name)
+            if v:
+                k = (name, norm(v))
+                if k in seen:
+                    R.fail(g, f"{name} doppelt in der Woche: {seen[k]} und {it['id']} ({v!r})")
+                seen.setdefault(k, it["id"])
+    orte = {}
+    for it in fotos:
+        if it["ort"]:
+            orte.setdefault(norm(it["ort"]), []).append(it["id"])
+    for o, ids in orte.items():
+        if len(ids) > 1:
+            R.warn(g, f"Gleicher Ort bei {', '.join(ids)} – lieber verschiedene Orte")
+    ids = {it["id"] for it in items}
+    for rec in read_history(Path(args.history)):
+        if rec.get("slug") in ids:
+            continue
+        for it in items:
+            for key, name in zip(VAR_KEYS[:3], VAR_NAMES[:3]):
+                v = it["vars"].get(name)
+                if v and rec.get(key) and norm(rec[key]) == norm(v):
+                    R.fail(g, f"{it['id']}: {name} wiederholt {rec.get('slug')} ({v!r})")
+    return R, kw, items
+
+
+def log_week(path, items):
+    ids = {it["id"] for it in items}
+    old = [r for r in read_history(path) if r.get("slug") not in ids]
+    today = datetime.date.today().isoformat()
+    for it in items:
+        rec = {"date": today, "slug": it["id"], "art": it["art"], "motiv": it["motiv"], "ort": it["ort"]}
+        rec.update({k: it["vars"].get(n) for k, n in zip(VAR_KEYS, VAR_NAMES)})
+        old.append(rec)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in old), encoding="utf-8")
 
 
 # ---------- Prüfungen ----------
@@ -310,53 +467,49 @@ def run_checks(text, args, slug):
     blocks = re.findall(r"```[^\n]*\n(.*?)```", s6, re.S)
     mj = [b for b in blocks if "--ar" in b]
     motion = [b for b in blocks if "--ar" not in b]
+    pool = [x.strip() for x in re.split(r"[,;]", field(s6, "Pool") or "") if x.strip()]
     g = R.group("Abdunkelungs-Formeln wörtlich, Bild-Formel vor den Parametern, Video-Formel am Ende")
-    if not mj:
+    if not mj and not (pool and fmt in ("reel", "story")):
         R.fail(g, "Midjourney-Prompt (Codeblock mit --ar) fehlt")
-    else:
-        p = mj[0].strip()
-        if p.count(IMG_FORMULA) != 1:
-            R.fail(g, "Bild-Formel nicht (genau einmal) wörtlich im Midjourney-Prompt")
-        else:
-            tail = p.split(IMG_FORMULA, 1)[1].strip()
-            if tail != PARAMS:
-                R.fail(g, f"Nach der Bild-Formel müssen direkt die Parameter '{PARAMS}' folgen (gefunden: {tail!r})")
-        pre = re.sub(r"\b(no|without|zero)\s+(people|persons?|humans?|figures?)\b", "", p.lower())
-        pre = pre.replace(IMG_FORMULA.lower(), "")
-        bad = re.findall(r"\b(people|person|woman|women|man|men|child|children|girl|boy|baby|mother|mom|face|faces|hands?)\b", pre)
-        if bad:
-            R.fail(g, f"Midjourney-Prompt erwähnt Menschen/Körperteile: {sorted(set(bad))}")
-        if "negative space" not in p.lower():
-            R.fail(g, "Midjourney-Prompt verlangt keinen 'negative space' für den Text")
+    for p in mj:
+        check_image_prompt(R, g, p)
     if fmt == "reel" and not motion:
         R.fail(g, "Motion-Prompt (Luma/Runway) fehlt")
-    for b in motion[:1]:
-        if not b.strip().endswith(VID_FORMULA):
-            R.fail(g, "Motion-Prompt endet nicht wörtlich mit der Video-Formel")
-        if re.search(r"camera (move|pan|zoom|dolly|tilt)", b.lower()):
-            R.fail(g, "Motion-Prompt bewegt die Kamera (Kamera muss statisch bleiben)")
+    for b in motion[:1] if not pool else motion:
+        check_video_prompt(R, g, b)
 
-    # Variablen
-    g = R.group("Agent-6-Variablen vorab auf Deutsch, vollständig und neu gegenüber der Historie")
-    vars_ = parse_vars(s6)
-    missing = [n for n in VAR_NAMES if n not in vars_]
-    if missing:
-        R.fail(g, f"Variablen fehlen: {missing}")
-    first_code = s6.find("```")
-    var_pos = s6.find("**Licht/Tageszeit:**")
-    if var_pos == -1 or (first_code != -1 and var_pos > first_code):
-        R.fail(g, "Die Variablen müssen VOR dem englischen Prompt stehen")
-    if not re.search(r"(?m)^\|.*\|\s*$", s6) or s6.count("\n|") < 3:
-        R.fail(g, "Vergleichstabelle zu den bisherigen Prompts fehlt")
-    for n in VAR_NAMES:
-        if re.search(r"\b(the|with|and|of)\b", vars_.get(n, "").lower()):
-            R.warn(g, f"'{n}' wirkt englisch – Variablen stehen auf Deutsch")
-    for rec in read_history(Path(args.history)):
-        if rec.get("slug") == slug:
-            continue
-        for key, name in zip(VAR_KEYS, VAR_NAMES):
-            if name in vars_ and rec.get(key) and norm(rec[key]) == norm(vars_[name]):
-                R.fail(g, f"{name} wiederholt einen früheren Post ({rec.get('slug')}): {vars_[name]!r}")
+    if pool:
+        # Medien aus dem Wochen-Pool: Prompts sind schon in der Wochen-Datei geprüft und geloggt
+        g = R.group("Wochen-Pool: Medien-IDs angegeben, Karussell mit zwei verschiedenen Fotos")
+        vars_ = {}
+        if fmt == "karussell" and (len(set(pool)) < 2 or len(mj) < 2):
+            R.fail(g, f"Karussell braucht zwei verschiedene Pool-Fotos mit je eigenem Prompt (Pool: {pool}, Prompts: {len(mj)})")
+        if fmt == "story" and not [i for i in pool if not re.search(r"-T\d\d-R[12]$", i)]:
+            R.fail(g, f"Story braucht mindestens ein Foto aus dem Pool (gefunden: {pool})")
+        if fmt == "reel" and not any(re.search(r"-T\d\d-R[12]$", i) for i in pool):
+            R.fail(g, f"Reel braucht die Video-ID aus dem Pool (z. B. 2026-KW47-T01-R1), gefunden: {pool}")
+    else:
+        # Variablen
+        g = R.group("Agent-6-Variablen vorab auf Deutsch, vollständig und neu gegenüber der Historie")
+        vars_ = parse_vars(s6)
+        missing = [n for n in VAR_NAMES if n not in vars_]
+        if missing:
+            R.fail(g, f"Variablen fehlen: {missing}")
+        first_code = s6.find("```")
+        var_pos = s6.find("**Licht/Tageszeit:**")
+        if var_pos == -1 or (first_code != -1 and var_pos > first_code):
+            R.fail(g, "Die Variablen müssen VOR dem englischen Prompt stehen")
+        if not re.search(r"(?m)^\|.*\|\s*$", s6) or s6.count("\n|") < 3:
+            R.fail(g, "Vergleichstabelle zu den bisherigen Prompts fehlt")
+        for n in VAR_NAMES:
+            if re.search(r"\b(the|with|and|of)\b", vars_.get(n, "").lower()):
+                R.warn(g, f"'{n}' wirkt englisch – Variablen stehen auf Deutsch")
+        for rec in read_history(Path(args.history)):
+            if rec.get("slug") == slug:
+                continue
+            for key, name in zip(VAR_KEYS, VAR_NAMES):
+                if name in vars_ and rec.get(key) and norm(rec[key]) == norm(vars_[name]):
+                    R.fail(g, f"{name} wiederholt einen früheren Post ({rec.get('slug')}): {vars_[name]!r}")
 
     # CapCut
     s9 = clean.get("9", "")
@@ -419,6 +572,9 @@ def log_history(path, slug, secs, clean, vars_):
         "stimmung": field(clean.get("4", ""), "Stimmung"),
     }
     rec.update({k: vars_.get(n) for k, n in zip(VAR_KEYS, VAR_NAMES)})
+    pool = [x.strip() for x in re.split(r"[,;]", field(clean.get("6", ""), "Pool") or "") if x.strip()]
+    if pool:
+        rec["pool"] = pool
     old = [r for r in read_history(path) if r.get("slug") != slug]
     old.append(rec)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -434,11 +590,23 @@ def main():
     ap.add_argument("--history", default=str(ROOT / "data" / "prompt-history.jsonl"))
     ap.add_argument("--slug")
     ap.add_argument("--names", default=str(ROOT / "data" / "forbidden-names.txt"))
+    ap.add_argument("--week", action="store_true", help="Wochen-Datei (output/woche-<KW>.md) prüfen")
     args = ap.parse_args()
 
     path = Path(args.file)
     if not path.exists():
         sys.exit(f"Datei nicht gefunden: {path}")
+    if args.week:
+        R, kw, items = run_week_checks(path.read_text(encoding="utf-8"), args)
+        for g in R.groups:
+            for level, msg in g["items"]:
+                print(f"{level} [{g['label']}] {msg}")
+        print(f"\n{kw}: {len(items)} Prompts · Ergebnis: {R.n_fail} FAIL, {R.n_warn} WARN → "
+              f"{'NICHT bestanden' if R.n_fail else 'bestanden'}")
+        if args.log and not R.n_fail:
+            log_week(Path(args.history), items)
+            print(f"Historie aktualisiert: {args.history}")
+        sys.exit(1 if R.n_fail else 0)
     slug = args.slug or path.stem
     R, secs, clean, vars_ = run_checks(path.read_text(encoding="utf-8"), args, slug)
 

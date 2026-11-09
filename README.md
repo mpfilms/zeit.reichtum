@@ -25,6 +25,14 @@ python3 scripts/render_images.py output/T03-K.md --slides
 Default model: `gemini-3-pro-image` (`--model gemini-flash` is cheaper). Image models need a Google AI Studio project with **billing enabled**; on the free tier the image quota is 0.
 Runs only after `qa_check.py --final` passes. The darkening formula stays verbatim; only the Midjourney parameters are translated (`--ar 9:16` → `aspectRatio`, people generation disabled). Put `PlayfairDisplay-Bold.ttf` and `Montserrat-Italic.ttf` into `assets/fonts/` (Georgia is the fallback).
 
+## Weekly media pool (keeps image/video costs low)
+```bash
+/woche-vorbereiten 2026-KW47 Plan-Woche 1   # 9 Gemini photos + 12 text-to-video prompts for the week
+python3 scripts/media.py status             # which photos/videos are still missing
+/create-post Karussell von Tag 3            # uses the pool: slides from the week's photos, no API call
+```
+Week = 12 reels + 2 carousels (days 3 and 6) + 1 story sequence per day. Photos: 1 per day, 2 on carousel days (clearly different scenes), 9:16, cropped to 4:5 for carousels. Videos are generated manually in Luma/Runway and saved as `medien/<KW>/videos/<SLOT>.mp4`. Own photos go into `medien/eigene/` (renamed, metadata/GPS stripped). `medien/` is git-ignored. Slide look alternates by day: odd days `glas` (very transparent card), even days `ohne` (text directly on the photo).
+
 ## How it works
 ```
  you ──► create-post (skill, main session = orchestrator)
@@ -47,7 +55,7 @@ The orchestrator assembles `output/<slot>.md`, runs `qa_check.py --final --log` 
 |---|---|
 | `CLAUDE.md` | project rules; imports `data/brand-dna.md` |
 | `.claude/agents/zr-01 … zr-11` | the 11 separate subagents (own prompt, own tool permissions) |
-| `.claude/skills/{start,create-post,content-plan,quote-pack}` | entry points / orchestration |
+| `.claude/skills/{start,create-post,content-plan,quote-pack,woche-vorbereiten}` | entry points / orchestration |
 | `data/brand-dna.md` | brand DNA, blacklist, wording, 75/25, the two darkening formulas |
 | `data/quotes.md` | vetted quote bank (extend only with verified sources) |
 | `data/content-plan.md` | 14-day plan, slot IDs like `T05-R1` (day 5, reel 1), `T03-K` (carousel) |
@@ -55,6 +63,7 @@ The orchestrator assembles `output/<slot>.md`, runs `qa_check.py --final --log` 
 | `data/blacklist.txt`, `data/forbidden-names.txt` | machine-checked word lists |
 | `scripts/qa_check.py` | deterministic QA (see below) |
 | `scripts/plan.py`, `scripts/roll.py` | plan blueprint, real 50/50 randomness |
+| `scripts/media.py`, `medien/` | weekly media pool (allocation, photo list, usage, own photos) – local only |
 | `scripts/render_images.py` | renders the Agent-6 prompt with Google Imagen 4 / Gemini into `output/<slot>/`; `--slides` adds the slide texts (Agent 9 style) |
 | `scripts/validate_repo.py`, `tests/` | self-tests (43 tests); CI in `.github/workflows/ci.yml` |
 
@@ -62,12 +71,12 @@ The orchestrator assembles `output/<slot>.md`, runs `qa_check.py --final --log` 
 Blacklist · forbidden names · exact caption header · ≤ 2 hashtags, never a block · hook ≤ 2 sentences · quote has source and "sinngemäß" · pitch = exactly one keyword + Manychat flow, nurture = no keyword/flow and ends with a community question · caption variant (a = exactly 4 sentences, CTA 4th; b = 4 ✨ lines; Sunday ≤ 2 sentences) · both darkening formulas verbatim, image formula directly before `--ar 9:16 --style raw --v 6.1` with nothing after, video formula at the end, no people, static camera · Agent-6 variables listed first and not repeated from the history · CapCut specs · DM transparency + affiliate note · money/time/member numbers raise a **WARN** for human review.
 
 ## Interpretation choices (change them in the agent files if you disagree)
-- Carousel/story: one Midjourney prompt as base for all slides, no motion prompt.
+- Carousel: two Midjourney prompts with clearly different scenes; story: one. With a prepared week both come verbatim from the weekly pool.
 - Story pitch uses the keyword "INFO" (as in the story spec); reel/carousel pitch uses "START".
 - Stories have no caption; Agent 7 outputs the mandatory "Werbung" header (+ optional sticker line).
 - Sunday Mode caption: ≤ 2 sentences in total, the CTA counts.
 - Audio: Agent 4 names a genre/sound, not a specific track (no invented chart titles).
-- Plan: odd days Reel 1 = Pitch, even days Reel 2 = Pitch; every 4th reel is a mirror (75/25).
+- Plan: per day one pitch and one nurture in the feed (odd days the first post is pitch); every 4th reel is a mirror (75/25); stories pitch on even days, never on Sunday.
 
 ## Develop
 ```bash

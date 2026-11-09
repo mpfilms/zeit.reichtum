@@ -6,3 +6,12 @@ __pycache__/
 
 # erzeugte Bilder (groß, jederzeit neu renderbar)
 output/**/*.png
+output/**/*.jpg
+output/**/*.webp
+
+# private Fakten und Namen (Repo ist öffentlich)
+data/private/
+
+# Wochen-Medien (Fotos, Videos, eigene Fotos, Bildliste) – nur lokal
+medien/*
+!medien/README.md

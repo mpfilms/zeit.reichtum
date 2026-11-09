@@ -32,6 +32,16 @@ CAROUSEL_23 = """
 """
 
 
+NEW_23 = """**Slide 1 · Hook:**
+# Titel
+
+**Slide 2 · Kontext:**
+# Überschrift
+> Akzent.
+Der **Minijob**. Die _unsichtbare_ ==Liste== bleibt.
+"""
+
+
 class Render(unittest.TestCase):
     def test_prompt_keeps_formula_and_strips_params(self):
         _, clean = ri.load_post(FIX / "nurture_ok.md")
@@ -48,10 +58,10 @@ class Render(unittest.TestCase):
                          {"sampleCount": 3, "aspectRatio": "9:16", "personGeneration": "dont_allow"})
 
     def test_gemini_request_one_call_per_image(self):
-        url, body, calls = ri.build_request("gemini-2.5-flash-image", "p", "3:4", 2)
+        url, body, calls = ri.build_request("gemini-2.5-flash-image", "p", "4:5", 2)
         self.assertTrue(url.endswith(":generateContent"))
         self.assertEqual(calls, 2)
-        self.assertEqual(body["generationConfig"]["imageConfig"]["aspectRatio"], "3:4")
+        self.assertEqual(body["generationConfig"]["imageConfig"]["aspectRatio"], "4:5")
 
     def test_extract_images_both_formats(self):
         b = base64.b64encode(b"PNG").decode()
@@ -62,20 +72,37 @@ class Render(unittest.TestCase):
                                                      "finishReason": "STOP"}]})
         self.assertEqual(imgs, [b"PNG"])
 
-    def test_parse_slides(self):
-        _, clean = None, {"2&3": qa_check.strip_comments(CAROUSEL_23)}
-        s = ri.parse_slides(clean)
+    def test_parse_slides_old_format(self):
+        s = ri.parse_slides({"2&3": qa_check.strip_comments(CAROUSEL_23)})
         self.assertEqual([x["nr"] for x in s], [1, 2, 3])
-        self.assertEqual(s[0]["source"], "Seneca, Briefe 1 (sinngemäß)")
-        self.assertEqual(s[1]["lines"], ["Zeile A.", "Zeile B."])
+        self.assertEqual(s[0]["blocks"][0][0], "h")  # alter Hook wird zur Überschrift
+        self.assertIn(("src", "Seneca, Briefe 1 (sinngemäß)"), s[0]["blocks"])
+        self.assertEqual(s[1]["blocks"], [("p", "Zeile A."), ("p", "Zeile B.")])
+
+    def test_parse_slides_new_format_and_runs(self):
+        s = ri.parse_slides({"2&3": NEW_23})
+        self.assertEqual([b[0] for b in s[1]["blocks"]], ["h", "k", "p"])
+        self.assertEqual(s[1]["label"], "Kontext")
+        r = ri.runs(s[1]["blocks"][2][1])
+        self.assertIn(("Minijob", "b", "."), r)            # Satzzeichen klebt am fetten Wort
+        self.assertIn(("Liste", "m", ""), r)
+        self.assertIn(("unsichtbare", "a", ""), r)
+
+    def test_variants_differ_and_keep_formula(self):
+        _, clean = ri.load_post(FIX / "nurture_ok.md")
+        prompt, _ = ri.image_prompt(clean)
+        vs = ri.variant_prompts(prompt, 3)
+        self.assertEqual(len(set(vs)), 3)
+        for v in vs:
+            self.assertTrue(v.endswith(qa_check.IMG_FORMULA))
 
     def test_dry_run_cli(self):
-        p = subprocess.run(CMD + [str(FIX / "nurture_ok.md"), "--dry-run", "--model", "imagen-4-fast"],
+        p = subprocess.run(CMD + [str(FIX / "nurture_ok.md"), "--dry-run", "--count", "2"],
                            capture_output=True, text=True)
         self.assertEqual(p.returncode, 0, p.stderr)
-        self.assertIn("imagen-4.0-fast-generate-001:predict", p.stdout)
-        body = json.loads(p.stdout.split("\n", 1)[1])
-        self.assertEqual(body["parameters"]["personGeneration"], "dont_allow")
+        self.assertEqual(p.stdout.count("POST "), 2)
+        self.assertIn('"aspectRatio": "9:16"', p.stdout)  # Fixture ist ein Reel
+        self.assertIn('"imageSize": "2K"', p.stdout)
 
     def test_refuses_without_qa(self):
         with tempfile.TemporaryDirectory() as d:
@@ -93,9 +120,9 @@ class Render(unittest.TestCase):
             base = Path(d) / "b.png"
             Image.new("RGB", (768, 1408), (110, 95, 80)).save(base)
             slides = ri.parse_slides({"2&3": qa_check.strip_comments(CAROUSEL_23)})
-            written, _ = ri.render_slides(base, slides, Path(d) / "s")
+            written, _ = ri.render_slides([base], slides, Path(d) / "s")
             self.assertEqual(len(written), 3)
-            self.assertEqual(Image.open(written[0]).size, (1080, 1920))
+            self.assertEqual(Image.open(written[0]).size, (1080, 1350))
 
 
 if __name__ == "__main__":

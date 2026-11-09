@@ -6,10 +6,16 @@
   plan.py set-hook T05-R1 "Idee"  Hook-Idee eintragen
   plan.py show                    Tabelle ausgeben
 
-Regeln: Start Montag, Tag 7 und 14 = Sonntag (Sunday Mode). Pro Tag 1 Morgen-Reel (ca. 06:45)
-und 1 Abend-Reel (ca. 20:00), jeden 3. Tag zusätzlich ein Karussell (ca. 12:30). Pro Tag je 1 Pitch-
-und 1 Nurture-Reel, Reihenfolge wechselnd (ungerade Tage: Reel 1 Pitch). Fokus rotiert A-D.
-Leuchtturm/Spiegel nach 75/25 (jedes 4. Reel ist ein Spiegel).
+Regeln (Wochenrhythmus, gilt für Woche 1 = Tag 1-7 und Woche 2 = Tag 8-14):
+- Start Montag, Tag 7 und 14 = Sonntag (Sunday Mode).
+- Karussell-Tage = Tag 3 und 6 jeder Woche (Tag 3, 6, 10, 13): 1 Morgen-Reel (06:45) + 1 Karussell (12:30).
+- Alle anderen Tage: Morgen-Reel (06:45) + Abend-Reel (20:00). → 12 Reels + 2 Karussells pro Woche.
+- Jeden Tag 1 Story-Sequenz (17:30), Slot Txx-S.
+- Pro Tag je 1 Pitch und 1 Nurture im Feed, Reihenfolge wechselnd (ungerade Tage: erster Post Pitch).
+  Stories: gerade Tage Pitch, ungerade Nurture, Sonntag immer Nurture.
+- Fokus rotiert A-D. Reels: jedes 4. Reel ist ein Spiegel (75/25). Karussells abwechselnd Leuchtturm/Spiegel.
+- Slide-Design wechselt nur von Tag zu Tag: ungerade Tage „glas“ (sehr transparente Karte),
+  gerade Tage „ohne“ (Text direkt auf dem Foto).
 """
 import json
 import re
@@ -31,40 +37,44 @@ SEP = "|---|---|---|---|---|---|"
 OPEN = "(offen)"
 
 
+CAROUSEL_DAYS = {3, 6, 10, 13}
+STORY_TIME = "17:30"
+
+
+def slide_design(day):
+    """Slide-Look pro Tag (nie gemischt innerhalb eines Tages)."""
+    return "glas" if day % 2 else "ohne"
+
+
 def build_rows():
     rows = []
-    carousel_n = 0
+    reel_n = carousel_n = 0
+
+    def row(slot, day, time, fmt, pitch, code, stil):
+        short = WEEKDAYS[(day - 1) % 7][:2]
+        focus = "Sunday Mode" if code == "S" else f"{code}) {FOCUS[code]}"
+        rows.append({"slot": slot, "tag": f"Tag {day} · {short} · {time}",
+                     "fmt": f"{fmt} · {'Pitch' if pitch else 'Nurture'}",
+                     "fokus": focus, "stil": stil, "hook": OPEN})
+
     for day in range(1, 15):
-        wd = (day - 1) % 7
-        sunday = wd == 6
-        short = WEEKDAYS[wd][:2]
-        for r, time in ((1, "06:45"), (None, "12:30"), (2, "20:00")):
-            if r is None:
-                if day % 3 != 0 or sunday:
-                    continue
-                n = carousel_n
-                carousel_n += 1
-                slot = f"T{day:02d}-K"
-                fmt = "Karussell"
-                pitch = n % 2 == 1
-                code = "S" if sunday else "ABCD"[n % 4]
-                stil = "Leuchtturm" if n % 2 == 0 else "Spiegel"
-            else:
-                idx = (day - 1) * 2 + (r - 1)
-                slot = f"T{day:02d}-R{r}"
-                fmt = f"Reel {r}"
-                pitch = (r == 1) == (day % 2 == 1)
-                code = "S" if sunday else "ABCD"[idx % 4]
-                stil = "Spiegel" if idx % 4 == 3 else "Leuchtturm"
-            focus = "Sunday Mode" if code == "S" else f"{code}) {FOCUS[code]}"
-            rows.append({
-                "slot": slot,
-                "tag": f"Tag {day} · {short} · {time}",
-                "fmt": f"{fmt} · {'Pitch' if pitch else 'Nurture'}",
-                "fokus": focus,
-                "stil": stil,
-                "hook": OPEN,
-            })
+        sunday = (day - 1) % 7 == 6
+        first_pitch = day % 2 == 1
+        # Reel 1 (Morgen)
+        row(f"T{day:02d}-R1", day, "06:45", "Reel 1", first_pitch,
+            "S" if sunday else "ABCD"[reel_n % 4], "Spiegel" if reel_n % 4 == 3 else "Leuchtturm")
+        reel_n += 1
+        if day in CAROUSEL_DAYS:
+            row(f"T{day:02d}-K", day, "12:30", "Karussell", not first_pitch,
+                "ABCD"[(carousel_n + 1) % 4], "Leuchtturm" if carousel_n % 2 == 0 else "Spiegel")
+            carousel_n += 1
+        else:
+            row(f"T{day:02d}-R2", day, "20:00", "Reel 2", not first_pitch,
+                "S" if sunday else "ABCD"[reel_n % 4], "Spiegel" if reel_n % 4 == 3 else "Leuchtturm")
+            reel_n += 1
+        row(f"T{day:02d}-S", day, STORY_TIME, "Story-Sequenz", day % 2 == 0 and not sunday,
+            "S" if sunday else "ABCD"[(day + 2) % 4], "Spiegel" if day % 4 == 0 else "Leuchtturm")
+    rows.sort(key=lambda r: (r["slot"][:3], r["tag"].rsplit("· ", 1)[1]))
     return rows
 
 
@@ -86,7 +96,9 @@ def write_plan(rows):
         "# 14-Tage-Content-Plan @zeit.reichtum",
         "",
         "Start Montag · Tag 7 und 14 = Sonntag (Sunday Mode) · Erzeugt mit `python3 scripts/plan.py generate`.",
-        "Einzelne Posts anfordern, z. B. „Reel 1 von Tag 5“ (Slot `T05-R1`).",
+        "Pro Woche: 12 Reels + 2 Karussells (Tag 3 und 6) + täglich 1 Story-Sequenz.",
+        "Slide-Design: ungerade Tage „glas“ (sehr transparente Karte), gerade Tage „ohne“ (Text direkt aufs Foto).",
+        "Einzelne Posts anfordern, z. B. „Reel 1 von Tag 5“ (Slot `T05-R1`), „Story von Tag 2“ (`T02-S`).",
         "",
         HEAD,
         SEP,
@@ -98,11 +110,13 @@ def write_plan(rows):
 
 def norm_slot(s):
     s = s.strip().lower().replace("_", "-")
-    m = re.match(r"^t?0*(\d{1,2})[-\s]*(?:r(?:eel)?\s*([12])|(k)(?:arussell)?)$", s)
+    m = re.match(r"^t?0*(\d{1,2})[-\s]*(?:r(?:eel)?\s*([12])|(k)(?:arussell)?|(s)(?:tory)?)$", s)
     if not m:
-        sys.exit(f"Unbekannter Slot: {s!r} (erwartet z. B. T05-R1, T03-K)")
+        sys.exit(f"Unbekannter Slot: {s!r} (erwartet z. B. T05-R1, T03-K, T02-S)")
     day = int(m.group(1))
-    return f"T{day:02d}-R{m.group(2)}" if m.group(2) else f"T{day:02d}-K"
+    if m.group(2):
+        return f"T{day:02d}-R{m.group(2)}"
+    return f"T{day:02d}-K" if m.group(3) else f"T{day:02d}-S"
 
 
 def cmd_generate(force):
@@ -129,7 +143,9 @@ def cmd_slot(arg):
         "tag": day,
         "wochentag": WEEKDAYS[(day - 1) % 7],
         "uhrzeit": m.group(2) if m else None,
-        "format": "Karussell" if fmt.startswith("Karussell") else "Reel",
+        "format": "Karussell" if fmt.startswith("Karussell") else "Story-Sequenz" if fmt.startswith("Story") else "Reel",
+        "woche": 1 if day <= 7 else 2,
+        "slide_design": slide_design(day),
         "reel_nummer": int(fmt.split()[1]) if fmt.startswith("Reel") else None,
         "ausrichtung": ausr,
         "fokus": r["fokus"],

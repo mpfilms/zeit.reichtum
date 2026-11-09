@@ -179,13 +179,16 @@ class Scripts(unittest.TestCase):
     def test_plan_blueprint_rules(self):
         rows = [l for l in (ROOT / "data" / "content-plan.md").read_text(encoding="utf-8").splitlines() if l.startswith("| T")]
         reels = [r for r in rows if "-R" in r.split("|")[1]]
-        self.assertEqual(len(reels), 28)
-        self.assertEqual(len([r for r in rows if "-K " in r.split("|")[1] + " "]), 4)
-        pitch = sum("Pitch" in r.split("|")[3] for r in reels)
-        self.assertEqual(pitch, 14)
+        self.assertEqual(len(reels), 24)  # 12 Reels pro Woche
+        self.assertEqual(len([r for r in rows if "-K " in r.split("|")[1] + " "]), 4)  # Tag 3, 6, 10, 13
+        self.assertEqual(len([r for r in rows if "-S " in r.split("|")[1] + " "]), 14)  # täglich Story
+        feed = [r for r in rows if "-S " not in r.split("|")[1] + " "]
+        for d in range(1, 15):  # pro Tag genau 1 Pitch und 1 Nurture im Feed
+            day = [r for r in feed if f"| T{d:02d}-" in r]
+            self.assertEqual(sorted(r.split("|")[3].split("· ")[1].strip() for r in day), ["Nurture", "Pitch"])
         for d in (7, 14):
             self.assertTrue(all("Sunday Mode" in r for r in rows if f"| T{d:02d}-" in r))
-        self.assertEqual(sum("Spiegel" in r.split("|")[5] for r in reels), 7)  # 75/25
+        self.assertEqual(sum("Spiegel" in r.split("|")[5] for r in reels), 6)  # 75/25
 
     def test_roll(self):
         for cmd, ok in (("pitch-nurture", {"Pitch", "Nurture"}), ("caption-variant", {"a", "b"})):

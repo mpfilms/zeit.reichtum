@@ -7,12 +7,14 @@ Dieses Repo automatisiert den 11-Agenten-Workflow für den Instagram-Account **@
 ## So arbeitest du hier
 - **Startsignal** (nur wenn Pamina das Regelwerk lädt oder `/start` nutzt): erzeuge noch keinen Content, antworte nur mit dem Satz aus dem Skill `start`.
 - **Einen Post erstellen** („Reel 1 von Tag 5", „Karussell von Tag 3", „Story-Sequenz", „Reel Pitch/Nurture"): nutze den Skill `create-post`. Es wird **nur dieser eine Post** erstellt.
-- **Plan** („14-Tage-Plan"): Skill `content-plan`. **Zitat-Ideen**: Skill `quote-pack` (4er-Pack).
+- **Plan** („14-Tage-Plan"): Skill `content-plan`. Pro Woche 12 Reels + 2 Karussells (Tag 3 und 6) + täglich 1 Story-Sequenz.
+- **Woche vorbereiten** (Wochenbeginn): Skill `woche-vorbereiten` – 9 Gemini-Fotos (1 pro Tag, an Karussell-Tagen 2, klar verschiedene Szenen) und 12 Video-Prompts; Pamina erzeugt die Videos selbst und legt sie als `medien/<KW>/videos/<SLOT>.mp4` ab. Posts der Woche nutzen diesen Pool (Pool-Modus), statt neue Bilder zu erzeugen. **Zitat-Ideen**: Skill `quote-pack` (4er-Pack).
 - Der Workflow läuft **sequenziell** über 11 getrennte Subagenten in `.claude/agents/` (`zr-01-…` bis `zr-11-…`). Jeder Agent hat genau eine Aufgabe und gibt nur seinen eigenen Block zurück. Du (Hauptsession) orchestrierst, übergibst Ergebnisse und setzt den Post zusammen. Du schreibst keine Agenten-Inhalte selbst.
 - Qualitätssicherung ist doppelt: Agent 10 (inhaltlich) **und** `scripts/qa_check.py` (deterministisch). Ein Post wird erst ausgegeben, wenn `qa_check.py --final` ohne `FAIL` durchläuft.
 - Zufall (Pitch/Nurture, Caption-Variante) kommt aus `scripts/roll.py`, nicht aus dem Bauchgefühl.
 - Gedächtnis des Workflows: `data/content-plan.md` (Plan), `data/prompt-history.jsonl` (bisherige Bild-/Video-Variablen, Motive, Audio). Ohne dieses Gedächtnis können Agent 4, 5 und 6 Wiederholungen nicht vermeiden.
-- Fertige Posts liegen in `output/<slot>.md`, die mit Google Gemini (oder Imagen 4) erzeugten Bilder in `output/<slot>/` (Schritt 4b im Skill `create-post`, erst nach bestandener QA).
+- Fertige Posts liegen in `output/<slot>.md`, Slides in `output/<slot>/slides/`. Wochen-Medien (Fotos, Videos, eigene Fotos, `bildliste.jsonl`) liegen in `medien/` – nur lokal, nie im öffentlichen Repo. Fotos im Feed höchstens einmal in 42 Tagen, in Stories beliebig oft.
+- Slide-Design: ungerade Plan-Tage „glas“ (sehr transparente Karte), gerade Tage „ohne“ (Text direkt auf dem Foto); nie innerhalb eines Tages mischen.
 
 ## Harte Regeln (gelten für alle Agenten)
 1. Blacklist niemals verletzen. Kein Name des Erstellers, kein Kursname (`data/forbidden-names.txt`).
@@ -22,7 +24,11 @@ Dieses Repo automatisiert den 11-Agenten-Workflow für den Instagram-Account **@
 
 ## Befehle
 - `python3 scripts/qa_check.py output/<slot>.md [--final] [--log]` – deterministische Qualitätsprüfung
-- `python3 scripts/plan.py generate | slot T05-R1 | set-hook T05-R1 "Idee"` – Content-Plan
+- `python3 scripts/plan.py generate | slot T05-R1 | set-hook T05-R1 "Idee"` – Content-Plan (Slots `Txx-R1/R2`, `Txx-K`, `Txx-S`)
+- `python3 scripts/media.py init <KW> --plan-woche 1 | plan | status | scan | add-eigen | pick <SLOT> | use` – Wochen-Medien-Pool
+- `python3 scripts/qa_check.py output/woche-<KW>.md --week [--log]` – Wochen-Prompts prüfen
 - `python3 scripts/roll.py pitch-nurture | caption-variant` – Zufall 50/50
-- `python3 scripts/render_images.py output/<slot>.md [--slides] [--model gemini-pro|gemini-flash|imagen-4] [--list-models] [--count 2] [--dry-run]` – Bilder direkt erzeugen (Schlüssel `GEMINI_API_KEY` in `.env`)
+- `python3 scripts/render_images.py output/woche-<KW>.md --week [--only ID] [--redo] [--dry-run]` – Fotos der Woche erzeugen (Schlüssel `GEMINI_API_KEY` in `.env`)
+- `python3 scripts/render_images.py output/<slot>.md --pool [--design glas|ohne]` – Slides aus Pool-Fotos (keine API-Kosten)
+- `python3 scripts/render_images.py output/<slot>.md [--slides] [--model gemini-pro|gemini-flash|imagen-4] [--list-models] [--count 2] [--dry-run]` – Bilder direkt erzeugen (ohne Wochen-Pool)
 - `python3 scripts/validate_repo.py` und `bash tests/run_tests.sh` – Selbsttest des Repos

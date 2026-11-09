@@ -1,0 +1,66 @@
+{
+  "model": "gemini-3-pro-image",
+  "aspect": "4:5",
+  "size": "2K",
+  "calls": 3,
+  "images": 3,
+  "usage": [
+    {
+      "promptTokenCount": 260,
+      "candidatesTokenCount": 1360,
+      "totalTokenCount": 1811,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 260
+        }
+      ],
+      "candidatesTokensDetails": [
+        {
+          "modality": "IMAGE",
+          "tokenCount": 1120
+        }
+      ],
+      "thoughtsTokenCount": 191,
+      "serviceTier": "standard"
+    },
+    {
+      "promptTokenCount": 268,
+      "candidatesTokenCount": 1329,
+      "totalTokenCount": 1911,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 268
+        }
+      ],
+      "candidatesTokensDetails": [
+        {
+          "modality": "IMAGE",
+          "tokenCount": 1120
+        }
+      ],
+      "thoughtsTokenCount": 314,
+      "serviceTier": "standard"
+    },
+    {
+      "promptTokenCount": 268,
+      "candidatesTokenCount": 1355,
+      "totalTokenCount": 1838,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 268
+        }
+      ],
+      "candidatesTokensDetails": [
+        {
+          "modality": "IMAGE",
+          "tokenCount": 1120
+        }
+      ],
+      "thoughtsTokenCount": 215,
+      "serviceTier": "standard"
+    }
+  ]
+}
