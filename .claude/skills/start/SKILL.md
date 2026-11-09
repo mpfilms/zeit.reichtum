@@ -1,6 +1,6 @@
 ---
 name: start
-description: Startsignal für @zeit.reichtum. Lädt die Marken-DNA und antwortet ausschließlich mit dem festen Bereitschaftssatz, ohne Content zu erzeugen. Nutzen, wenn Pamina das Regelwerk lädt oder /start eingibt.
+description: Startsignal für @zeit.reichtum. Lädt die Marken-DNA und antwortet ausschliesslich mit dem festen Bereitschaftssatz, ohne Content zu erzeugen. Nutzen, wenn Pamina das Regelwerk lädt oder /start eingibt.
 disable-model-invocation: true
 ---
 

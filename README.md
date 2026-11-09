@@ -31,7 +31,9 @@ Runs only after `qa_check.py --final` passes. The darkening formula stays verbat
 python3 scripts/media.py status             # which photos/videos are still missing
 /create-post Karussell von Tag 3            # uses the pool: slides from the week's photos, no API call
 ```
-Week = 12 reels + 2 carousels (days 3 and 6) + 1 story sequence per day. Photos: 1 per day, 2 on carousel days (clearly different scenes), 9:16, cropped to 4:5 for carousels. Videos are generated manually in Luma/Runway and saved as `medien/<KW>/videos/<SLOT>.mp4`. Own photos go into `medien/eigene/` (renamed, metadata/GPS stripped). `medien/` is git-ignored. Slide look alternates by day: odd days `glas` (very transparent card), even days `ohne` (text directly on the photo).
+Week = 12 reels + 2 carousels (days 3 and 6) + 1 story sequence per day. Photos: 1 per day, 2 on carousel days (clearly different scenes), 9:16, cropped to 4:5 for carousels. Videos are generated manually in Luma/Runway and saved as `medien/<KW>/videos/<SLOT>.mp4`. Own photos go into `medien/eigene/` (renamed, metadata/GPS stripped). The weekly prep can request specific own photos (`media.py wunsch`); those IDs skip Gemini unless no photo arrives.
+
+Topic wishes live in `data/themen-wuensche.md`; `plan.py themen` assigns them to matching slots (new plan column “Thema”). Swiss spelling: content never uses “ß” (QA fails on it). `medien/` is git-ignored. Slide look alternates by day: odd days `glas` (very transparent card), even days `ohne` (text directly on the photo).
 
 ## How it works
 ```
@@ -68,7 +70,7 @@ The orchestrator assembles `output/<slot>.md`, runs `qa_check.py --final --log` 
 | `scripts/validate_repo.py`, `tests/` | self-tests (43 tests); CI in `.github/workflows/ci.yml` |
 
 ## What the deterministic QA enforces
-Blacklist · forbidden names · exact caption header · ≤ 2 hashtags, never a block · hook ≤ 2 sentences · quote has source and "sinngemäß" · pitch = exactly one keyword + Manychat flow, nurture = no keyword/flow and ends with a community question · caption variant (a = exactly 4 sentences, CTA 4th; b = 4 ✨ lines; Sunday ≤ 2 sentences) · both darkening formulas verbatim, image formula directly before `--ar 9:16 --style raw --v 6.1` with nothing after, video formula at the end, no people, static camera · Agent-6 variables listed first and not repeated from the history · CapCut specs · DM transparency + affiliate note · money/time/member numbers raise a **WARN** for human review.
+Blacklist · forbidden names · exact caption header · ≤ 2 hashtags, never a block · hook ≤ 2 sentences · quote has source and "sinngemäss" · pitch = exactly one keyword + Manychat flow, nurture = no keyword/flow and ends with a community question · caption variant (a = exactly 4 sentences, CTA 4th; b = 4 ✨ lines; Sunday ≤ 2 sentences) · both darkening formulas verbatim, image formula directly before `--ar 9:16 --style raw --v 6.1` with nothing after, video formula at the end, no people, static camera · Agent-6 variables listed first and not repeated from the history · CapCut specs · DM transparency + affiliate note · money/time/member numbers raise a **WARN** for human review.
 
 ## Interpretation choices (change them in the agent files if you disagree)
 - Carousel: two Midjourney prompts with clearly different scenes; story: one. With a prepared week both come verbatim from the weekly pool.

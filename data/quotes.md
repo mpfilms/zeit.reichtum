@@ -1,9 +1,9 @@
 # Geprüfte Zitat-Bank (Leuchttürme)
 
-Nur Zitate, deren Quelle belegt ist. Übersetzungen sind frei und werden im Content als „sinngemäß" markiert.
+Nur Zitate, deren Quelle belegt ist. Übersetzungen sind frei und werden im Content als „sinngemäss" markiert.
 Neue Zitate nur aufnehmen, wenn die Fundstelle verifiziert ist (Agent 2 prüft per WebSearch). **Vor Veröffentlichung kurz gegenprüfen.**
 
-| Denker | Werk, Stelle | Original / Kern | Sinngemäß (DE) | Thema |
+| Denker | Werk, Stelle | Original / Kern | Sinngemäss (DE) | Thema |
 |---|---|---|---|---|
 | Seneca | De brevitate vitae 1,3 | Non exiguum temporis habemus, sed multum perdidimus. | Wir haben nicht zu wenig Zeit, wir verlieren nur viel davon. | Zeit |
 | Seneca | Epistulae morales 1,1 | Vindica te tibi. | Hol dich dir selbst zurück. | Zeit, Selbstwert |

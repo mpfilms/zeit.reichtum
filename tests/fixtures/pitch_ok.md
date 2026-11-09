@@ -11,11 +11,11 @@
 - **Quelle:** Plan
 
 ## Agent 2 & 3 · Hook & Script
-**Zitat:** Seneca, *De brevitate vitae* 1,3 (sinngemäß übersetzt)
+**Zitat:** Seneca, *De brevitate vitae* 1,3 (sinngemäss übersetzt)
 
 **Einblendung 1 (Hook):**
 „Wir haben nicht zu wenig Zeit. Wir verlieren nur viel davon."
-**Quelle:** Seneca, *De brevitate vitae* (sinngemäß)
+**Quelle:** Seneca, *De brevitate vitae* (sinngemäss)
 
 **Einblendung 2:**
 *Vor allem morgens, wenn der Tag schon Gewicht hat, bevor er beginnt.*
@@ -62,7 +62,7 @@ Very slow, subtle movement only in the sheer linen curtain swaying gently in a s
 
 Werbung 🤍 | Folge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest.
 
-Seneca sagte sinngemäß, wir hätten nicht zu wenig Zeit, wir verlören nur viel davon, und genau so fühlt sich jeder Morgen im #MentalLoad an.
+Seneca sagte sinngemäss, wir hätten nicht zu wenig Zeit, wir verlören nur viel davon, und genau so fühlt sich jeder Morgen im #MentalLoad an.
 
 In der Zeit-gegen-Geld-Falle bleibt dein Tag voll mit Pflichten, die niemand sieht, und für dich selbst bleibt kaum etwas übrig.
 
@@ -87,8 +87,8 @@ Kommentiere „START" und ich sende dir das kostenlose Info-Video zu meinem auto
 |---|---|---|
 | 1 Hook | 0,0-3,5 s | Playfair Display Bold, #F5EFE6, zentriert, zarter Schatten |
 | 1 Quelle | 0,0-3,5 s | klein, direkt unter dem Hook |
-| 2 Erklärtext | 3,5-6,5 s | Montserrat Italic, ca. 60 % der Hook-Größe, #F5EFE6 |
-| 3 Verweis | 6,5-9,0 s | Montserrat Italic, ca. 60 % der Hook-Größe, #F5EFE6 |
+| 2 Erklärtext | 3,5-6,5 s | Montserrat Italic, ca. 60 % der Hook-Grösse, #F5EFE6 |
+| 3 Verweis | 6,5-9,0 s | Montserrat Italic, ca. 60 % der Hook-Grösse, #F5EFE6 |
 
 ## Agent 10 · Quality Assurance
 ✅ Keine Blacklist-Wörter

@@ -73,7 +73,7 @@ for must in ("start", "create-post", "content-plan", "quote-pack"):
     if must not in skills:
         err(f"Skill fehlt: {must}")
 
-# Orchestrator ruft jeden Agenten auf (außer 10 in der Tabelle, der separat steht)
+# Orchestrator ruft jeden Agenten auf (ausser 10 in der Tabelle, der separat steht)
 cp = skills.get("create-post", "")
 for name in agent_names:
     if name not in cp:

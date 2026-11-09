@@ -2,13 +2,16 @@
 
 Alle Agenten lesen diese Datei zuerst. Antworte immer auf Deutsch (Bild-/Video-Prompts auf Englisch).
 
+**Schreibweise: Schweizer Rechtschreibung – immer „ss“, nie „ß“** (z. B. „gross“, „Strasse“, „sinngemäss“, „ausserdem“). Gilt für alle Texte, Slides, Captions, Stories und DMs; `qa_check.py` meldet jedes „ß“ als Fehler.
+
 ## Marken-DNA
 - **Zielgruppe:** Mütter im Mental Load. Sie stecken in der Zeit-gegen-Geld-Falle (Minijob), funktionieren nur noch und leiden unter Mom-Guilt (Geld für sich auszugeben fühlt sich falsch an). Sie wollen keine Yachten, sondern finanziellen und mentalen Frieden.
+- **Region:** deutschsprachiger Raum. Bisher führen vor allem Deutsche dieses Business, deshalb **ab und zu gezielt die Schweiz ansprechen** (z. B. „auch für Mamas in der Schweiz“, „egal ob in Zürich oder Hamburg“), etwa in jedem 4. bis 5. Post, nie gezwungen. Keine Aussagen zu Schweizer Steuern, Recht, Preisen oder Verfügbarkeit von Programmen ohne belegte Quelle; im Zweifel `RÜCKFRAGE:`.
 - **Tonalität „Boss-Mama":** tiefgründig, ruhig, empathisch, stoisch. Sarkasmus nur bei Mythen und immer verständnisvoll. Keine lauten Influencer-Tricks, keine Kalendersprüche, keine künstliche Verknappung, keine Marktschreierei.
 - **Kanal-Mission:** ein philosophischer Leitfaden für den eigenen Lebensweg, der gestressten Müttern hilft, sich selbst wiederzufinden.
 - **Autorität („Die souveräne Architektin"):** ruhige Kompetenz. Das Fundament steht, das System läuft automatisiert im Hintergrund. Verkauft wird die Transformation des Gefühls: abendliche Energie, ein eigenes Projekt, Ausstieg aus dem Funktionier-Roboter-Modus.
 - **Kontrast Alt vs. Neu:** schmerzhafte, spezifische Vergangenheit (z. B. für wenig Gewinn Pakete zur Post tragen, keine Energie für die Kinder, sich nichts gönnen) gegen das smarte System (1-2 Stunden pro Tag, keine eigenen Produkte, anonym). **Persönliche Rückblicke nur, wenn sie für Pamina wahr sind. Im Zweifel nachfragen** (Agent meldet `RÜCKFRAGE: …`).
-- **Social Proof ist der Nordstern:** Die Community zeigt, worauf das System zusteuert. Nur qualitativ formulieren („In der Community teilen Frauen, wie aus einem kleinen Anfang etwas Eigenes wird"). Keine Einkommenszahlen, keine Ergebnisversprechen, keine Mitgliederzahlen, außer Pamina bestätigt, dass sie belegbar sind (dann mit „Einzelfall, kein Ergebnisversprechen").
+- **Social Proof ist der Nordstern:** Die Community zeigt, worauf das System zusteuert. Nur qualitativ formulieren („In der Community teilen Frauen, wie aus einem kleinen Anfang etwas Eigenes wird"). Keine Einkommenszahlen, keine Ergebnisversprechen, keine Mitgliederzahlen, ausser Pamina bestätigt, dass sie belegbar sind (dann mit „Einzelfall, kein Ergebnisversprechen").
 
 ## Strikte Blacklist
 Diese Wörter dürfen NIEMALS im Text, On-Screen, in der Caption oder in DMs auftauchen: **magie, magisch, Zaubertrick, Zauberei, Hexenwerk, karma.** (Maschinenlesbar: `data/blacklist.txt`.)
@@ -19,13 +22,16 @@ Diese Wörter dürfen NIEMALS im Text, On-Screen, in der Caption oder in DMs auf
 - Wir sind eine ehrliche, transparente Affiliate-Partnerin. Story: Ausweg aus dem Mental Load gesucht, dieses System entdeckt, selbst angewendet, empfohlen aus Überzeugung.
 - **Funnel:** Nutzerin kommentiert Keyword (Standard: „START") → Manychat sendet 2-stufigen DM-Flow → Link zum kostenlosen Info-Video (Lead-Magnet).
 - **Den Namen des Erstellers und den Kursnamen NIEMALS nennen** (Hooks, Captions, DMs). Stattdessen: „mein automatisiertes System", „der digitale Fahrplan, den ich nutze", „die Schritt-für-Schritt-Strategie, die mir geholfen hat", „mein digitales Nebeneinkommen". Statt „Workshop" schreibe „kostenloses Info-Video". (Die verbotenen Namen stehen in `data/forbidden-names.txt`.)
-- **Die 4 Kernargumente** fließen natürlich ein: (1) radikal anfängerfreundlich, Schritt-für-Schritt in kurzen Videolektionen, (2) Start ohne eigenes Produkt, bewährte Produkte empfehlen, (3) aktive Community mit echten Erfolgen, (4) Faceless und KI-gestützt, automatisierte Reichweite über Instagram.
+- **Die 4 Kernargumente** fliessen natürlich ein: (1) radikal anfängerfreundlich, Schritt-für-Schritt in kurzen Videolektionen, (2) Start ohne eigenes Produkt, bewährte Produkte empfehlen, (3) aktive Community mit echten Erfolgen, (4) Faceless und KI-gestützt, automatisierte Reichweite über Instagram.
 - **Rechtliches:** Jede Caption beginnt mit der Kennzeichnung (Agent 7). Jede DM mit Link enthält einen Affiliate-Hinweis. Keine Einkommens- oder Zeitversprechen, die nicht belegbar sind.
+
+## Wunschthemen
+Paminas Themenwünsche stehen in `data/themen-wuensche.md`. Der Skill `content-plan` verteilt sie auf passende Slots (Spalte „Thema“ im Plan); ein Thema im Plan schlägt die freie Ideenfindung, bleibt aber an Fokus, Ton und alle Regeln gebunden.
 
 ## Content-Gewichtung 75/25
 - Von 4 Videos sind 3 „Leuchttürme" (echte, tiefgründige antike Zitate: Seneca, Marc Aurel, Epiktet, andere Stoiker, Griechen, Römer, Weisheiten der Azteken oder Naturvölker; Themen: Zeit, innerer Reichtum, Vergänglichkeit, Seelenruhe) und 1 „Spiegel" (moderner, tiefenpsychologischer Hook).
 - Zitat-Ideen werden immer als **4er-Pack** geliefert (3 Leuchttürme, 1 Spiegel), je mit Caption.
-- Antike Zitate immer mit Quellenangabe. Übersetzungen sind frei und werden als „sinngemäß" markiert. **Nichts erfinden und keinem Denker etwas zuschreiben, das er nicht gesagt hat.**
+- Antike Zitate immer mit Quellenangabe. Übersetzungen sind frei und werden als „sinngemäss" markiert. **Nichts erfinden und keinem Denker etwas zuschreiben, das er nicht gesagt hat.**
 
 ## Die zwei Abdunkelungs-Formeln („Magic Words", intern)
 Müssen **wörtlich** (Zeichen für Zeichen) verwendet werden. Maschinenlesbar in `scripts/qa_check.py`.

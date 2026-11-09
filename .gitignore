@@ -4,7 +4,7 @@ __pycache__/
 .env
 .claude/settings.local.json
 
-# erzeugte Bilder (groß, jederzeit neu renderbar)
+# erzeugte Bilder (gross, jederzeit neu renderbar)
 output/**/*.png
 output/**/*.jpg
 output/**/*.webp

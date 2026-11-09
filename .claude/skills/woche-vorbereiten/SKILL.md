@@ -16,7 +16,8 @@ Keine Repo-Tests ausführen (`run_tests.sh`, unittest, `validate_repo.py`), nur 
 - Plan-Zeilen der Woche: `python3 scripts/plan.py slot <SLOT>` für jeden Slot der Woche (Format, Fokus, Stil, Hook-Idee, Sunday Mode).
 
 ## 2. Agent 5 im Wochen-Modus (`zr-05-art-director`)
-Übergib: KW, die Zuteilung (alle IDs mit Tag und Zweck), die Plan-Zeilen der Woche. Verlange den **Wochen-Bildplan** (Tabelle, eine Zeile pro ID).
+Übergib: KW, die Zuteilung (alle IDs mit Tag und Zweck), die Plan-Zeilen der Woche (inkl. Thema). Verlange den **Wochen-Bildplan** (Tabelle, eine Zeile pro ID, mit Spalte „Eigenes Foto“).
+Für jede Zeile mit Foto-Wunsch: `python3 scripts/media.py wunsch <KW> <ID> "<Wunsch>" --bis "Tag <n-1>"` (einen Tag vor der Verwendung; bei Tag 1 „Tag 1 früh“). Diese IDs erzeugt Schritt 6 nicht mit Gemini.
 
 ## 3. Agent 6 im Wochen-Modus (`zr-06-prompt-engineer`)
 Übergib: KW, Zuteilung, Plan-Zeilen und den Wochen-Bildplan von Agent 5. Verlange alle **21 Abschnitte** (9 Fotos, 12 Videos) im Wochen-Format.
@@ -46,5 +47,6 @@ Nur nach bestandener Prüfung und nur mit `GEMINI_API_KEY` in `.env` (sonst übe
 
 ## 7. Ausgabe an Pamina
 1. Kurz: KW, Plan-Woche, wie viele Fotos erzeugt wurden (oder warum nicht), ungefähre Kosten.
-2. **Die 12 Video-Prompts**, je mit Slot, Tag, Fokus und dem **Zieldateinamen** `medien/<KW>/videos/<SLOT>.mp4` – die Prompts als Codeblöcke, unverändert (Formel wörtlich).
-3. Hinweis: Videos genau so benennen; `python3 scripts/media.py status <KW>` zeigt, was noch fehlt. Eigene Fotos einfach in `medien/eigene/` legen – du benennst sie beim nächsten Post (siehe create-post).
+2. **Deine Foto-Wünsche** (aus `python3 scripts/media.py status <KW>`): je Wunsch was, wofür (Slot) und bis wann; Fotos einfach in `medien/eigene/` legen. Kommt keins, nehme ich beim Post das Gemini-Ersatzbild (ca. 0,14 $).
+3. **Die 12 Video-Prompts**, je mit Slot, Tag, Fokus und dem **Zieldateinamen** `medien/<KW>/videos/<SLOT>.mp4` – die Prompts als Codeblöcke, unverändert (Formel wörtlich).
+4. Hinweis: Videos genau so benennen; `python3 scripts/media.py status <KW>` zeigt, was noch fehlt. Eigene Fotos einfach in `medien/eigene/` legen – du benennst sie beim nächsten Post (siehe create-post).

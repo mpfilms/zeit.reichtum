@@ -11,11 +11,11 @@
 - **Quelle:** Plan
 
 ## Agent 2 & 3 · Hook & Script
-**Zitat:** Marc Aurel, *Selbstbetrachtungen* 4,3 (sinngemäß übersetzt)
+**Zitat:** Marc Aurel, *Selbstbetrachtungen* 4,3 (sinngemäss übersetzt)
 
 **Einblendung 1 (Hook):**
 „Nirgends findest du mehr Ruhe als in deiner eigenen Seele."
-**Quelle:** Marc Aurel, *Selbstbetrachtungen* 4,3 (sinngemäß)
+**Quelle:** Marc Aurel, *Selbstbetrachtungen* 4,3 (sinngemäss)
 
 **Einblendung 2:**
 *Auch wenn der Tag laut war und dein Kopf noch lauter ist.*
@@ -62,7 +62,7 @@ Very slow, gentle waves rolling in and retreating at the lower edge of the frame
 
 Werbung 🤍 | Folge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest.
 
-Marc Aurel schrieb sinngemäß, dass ein Mensch nirgends mehr Ruhe findet als in der eigenen Seele.
+Marc Aurel schrieb sinngemäss, dass ein Mensch nirgends mehr Ruhe findet als in der eigenen Seele.
 
 Als Mama ist genau dieser Rückzug oft der erste Platz, den der #MentalLoad auffrisst, und am Abend sind die Gedanken noch lange wach.
 
@@ -87,8 +87,8 @@ Welchen kleinen Moment nur für dich erlaubst du dir heute, ganz ohne schlechtes
 |---|---|---|
 | 1 Hook | 0,0-3,5 s | Playfair Display Bold, #F5EFE6, zentriert, zarter Schatten |
 | 1 Quelle | 0,0-3,5 s | klein, direkt unter dem Hook |
-| 2 Erklärtext | 3,5-6,5 s | Montserrat Italic, ca. 60 % der Hook-Größe, #F5EFE6 |
-| 3 Verweis | 6,5-9,0 s | Montserrat Italic, ca. 60 % der Hook-Größe, #F5EFE6 |
+| 2 Erklärtext | 3,5-6,5 s | Montserrat Italic, ca. 60 % der Hook-Grösse, #F5EFE6 |
+| 3 Verweis | 6,5-9,0 s | Montserrat Italic, ca. 60 % der Hook-Grösse, #F5EFE6 |
 
 ## Agent 10 · Quality Assurance
 ✅ Keine Blacklist-Wörter

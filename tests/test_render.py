@@ -17,11 +17,11 @@ CMD = [sys.executable, str(ROOT / "scripts" / "render_images.py")]
 
 CAROUSEL_23 = """
 ## Agent 2 & 3 · Hook & Script
-**Zitat:** Seneca, *Briefe* 1 (sinngemäß)
+**Zitat:** Seneca, *Briefe* 1 (sinngemäss)
 
 **Slide 1 (Hook):**
 „Erster Satz. Zweiter Satz.“
-**Quelle:** Seneca, *Briefe* 1 (sinngemäß)
+**Quelle:** Seneca, *Briefe* 1 (sinngemäss)
 
 **Slide 2:**
 *Zeile A.*
@@ -76,7 +76,7 @@ class Render(unittest.TestCase):
         s = ri.parse_slides({"2&3": qa_check.strip_comments(CAROUSEL_23)})
         self.assertEqual([x["nr"] for x in s], [1, 2, 3])
         self.assertEqual(s[0]["blocks"][0][0], "h")  # alter Hook wird zur Überschrift
-        self.assertIn(("src", "Seneca, Briefe 1 (sinngemäß)"), s[0]["blocks"])
+        self.assertIn(("src", "Seneca, Briefe 1 (sinngemäss)"), s[0]["blocks"])
         self.assertEqual(s[1]["blocks"], [("p", "Zeile A."), ("p", "Zeile B.")])
 
     def test_parse_slides_new_format_and_runs(self):

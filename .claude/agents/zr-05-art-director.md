@@ -29,11 +29,13 @@ Du bekommst die Zuteilung einer Woche (9 Foto-IDs, 12 Video-IDs, je mit Tag und 
 - Slow-Life-Ästhetik, gedeckte Erdtöne, **keine Menschen**. Fotos: Platz für Text oben und in der Mitte (sie werden für Story 9:16 und Karussell 4:5 genutzt).
 - Lies `data/prompt-history.jsonl` (Felder `ort`, `motiv`) und vermeide die Orte der Vorwoche, wo möglich.
 
+- **Foto-Wünsche an Pamina:** Markiere 1-3 Foto-IDs pro Woche, bei denen ein **echtes Foto von Pamina** stärker wirkt als ein KI-Bild – vor allem Stories mit Thema Community, Q&A oder Alltag. Formuliere den Wunsch konkret und machbar mit dem Handy (Motiv, Licht, Ausschnitt), **ohne Gesichter, ohne Kinder erkennbar, ohne Hinweise auf den Wohnort** (Strassenschilder, Hausnummern, Aussicht). Sonst „–“. Für diese IDs schreibt Agent 6 trotzdem einen Prompt (Ersatz, falls kein Foto kommt).
+
 Ausgabe (exakt):
 ```
-| ID | Tag | Zweck | Ort/Szene | Motiv/Stimmung |
-|---|---|---|---|---|
-| 2026-KW47-F01 | 1 | T01-S | Küche, Morgen | Slow Morning, ruhiges Ankommen |
+| ID | Tag | Zweck | Ort/Szene | Motiv/Stimmung | Eigenes Foto |
+|---|---|---|---|---|---|
+| 2026-KW47-F01 | 1 | T01-S | Küche, Morgen | Slow Morning, ruhiges Ankommen | Kaffeetasse und Notizbuch am Küchentisch im Morgenlicht, von oben |
 …
 - **Begründung:** 1-2 Sätze, wie die Woche zusammenhängt und wodurch sich die Karussell-Paare unterscheiden
 ```

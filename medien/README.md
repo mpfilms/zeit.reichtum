@@ -1,6 +1,6 @@
 # Medien-Ordner (nur lokal)
 
-Alles hier außer dieser Datei ist per `.gitignore` vom öffentlichen Repo ausgeschlossen.
+Alles hier ausser dieser Datei ist per `.gitignore` vom öffentlichen Repo ausgeschlossen.
 
 ```
 medien/

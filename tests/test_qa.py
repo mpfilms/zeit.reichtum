@@ -73,7 +73,7 @@ class QA(unittest.TestCase):
         self.assertFails(PITCH.replace("steht in der Caption.", "steht anderswo."), "Caption")
 
     def test_missing_sinngemaess(self):
-        self.assertFails(PITCH.replace("sinngemäß", "frei"), "sinngemäß")
+        self.assertFails(PITCH.replace("sinngemäss", "frei"), "sinngemäss")
 
     # --- Pitch / Nurture ---
     def test_pitch_two_keywords(self):
@@ -149,7 +149,7 @@ class QA(unittest.TestCase):
         self.assertFails(PITCH.replace("Playfair Display Bold", "Arial"), "Playfair Display Bold")
 
     def test_affiliate_hint_missing(self):
-        self.assertFails(PITCH.replace("Das ist ein Affiliate-Link, ich erhalte ggf. eine Provision. Für dich bleibt es kostenlos.", "Viel Spaß."), "Affiliate")
+        self.assertFails(PITCH.replace("Das ist ein Affiliate-Link, ich erhalte ggf. eine Provision. Für dich bleibt es kostenlos.", "Viel Spass."), "Affiliate")
 
     def test_final_requires_agent10(self):
         text = PITCH.split("## Agent 10")[0] + "## Agent 11" + PITCH.split("## Agent 11")[1]
@@ -162,6 +162,9 @@ class QA(unittest.TestCase):
         self.assertFails(swapped, "Reihenfolge")
 
     # --- WARN, kein FAIL ---
+    def test_swiss_spelling(self):
+        self.assertFails(PITCH.replace("Deine Pamina 🤍", "Deine Pamina 🤍 Grüße", 1), "ß")
+
     def test_numbers_warn_only(self):
         code, out = self.run_qa(PITCH.replace("nur mit dem Handy.", "nur mit dem Handy und 2 Stunden pro Tag."))
         self.assertEqual(code, 0, out)

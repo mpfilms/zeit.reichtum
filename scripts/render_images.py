@@ -12,7 +12,7 @@ Bilder landen in output/<slot>/bild-1.jpg … ; mit --slides entstehen fertige S
 --model     gemini-pro (Standard) | gemini-flash | imagen-4 | imagen-4-ultra | imagen-4-fast | volle ID
 --list-models  zeigt, welche Bildmodelle dein Schlüssel nutzen darf
 --count     Anzahl Varianten (1-4, Standard 3); jede Variante mit eigener Komposition
---size      Bildgröße bei Gemini 3: 1K | 2K (Standard) | 4K
+--size      Bildgrösse bei Gemini 3: 1K | 2K (Standard) | 4K
 --aspect    Seitenverhältnis (Standard nach Format: Karussell 4:5, Story und Reel 9:16)
 --slides    Slides im Karten-Design (braucht Pillow und die Schriften in assets/fonts/);
             die Slides wechseln zwischen den Bildvarianten, Rahmen und Typografie bleiben gleich
@@ -104,9 +104,9 @@ def mj_to_api(p):
 def parse_slides(clean):
     """Slides/Einblendungen aus Agent 2 & 3 → [{'nr', 'label', 'blocks': [(art, text)]}].
 
-    Auszeichnung pro Zeile (Agent 3):  '# Überschrift'  |  '> Akzentzeile'  |  '**Quelle:** …'  |  Fließtext.
+    Auszeichnung pro Zeile (Agent 3):  '# Überschrift'  |  '> Akzentzeile'  |  '**Quelle:** …'  |  Fliesstext.
     Im Text: **fett** (Schlüsselwort), ==markiert== (salbeigrün hinterlegt), _Akzent_ (Playfair kursiv).
-    Ältere Posts (ganze Zeile in *…*) werden als normaler Fließtext gelesen.
+    Ältere Posts (ganze Zeile in *…*) werden als normaler Fliesstext gelesen.
     """
     slides, cur = [], None
     for raw in clean.get("2&3", "").splitlines():
@@ -506,7 +506,7 @@ def render_slide(img, slide, total, fonts, Image, ImageDraw, ImageFilter, scale,
         draw = ImageDraw.Draw(img)
     draw_text(draw, laid, colors, y, W)
 
-    # Fußzeile: Handle links, Seitenzahl + Wisch-Hinweis rechts
+    # Fusszeile: Handle links, Seitenzahl + Wisch-Hinweis rechts
     fy = cy1 - footer_h
     draw.line((cx0 + pad, fy, cx1 - pad, fy), fill=colors["line"], width=2)
     small = fonts.get("text", W * 0.026)
@@ -540,7 +540,7 @@ def render_slides(images, slides, out_dir, size=(1080, 1350), design="glas"):
     out_dir.mkdir(parents=True, exist_ok=True)
     for old in out_dir.glob("slide-*.png"):
         old.unlink()
-    # Eine gemeinsame Schriftgröße für alle Folgeslides (wirkt wie aus einem Guss); Slide 1 darf größer sein.
+    # Eine gemeinsame Schriftgrösse für alle Folgeslides (wirkt wie aus einem Guss); Slide 1 darf grösser sein.
     probe = ImageDraw.Draw(Image.new("RGB", size))
     W, H = size
     rest = [fit_scale(probe, fonts, s, W, H, 1.4)[0] for s in slides if s["nr"] != 1]
@@ -580,6 +580,10 @@ def render_week(path, args, model):
     wf = media.week_file(kw)
     if wf.exists():
         alloc = {f["id"]: f for f in json.loads(wf.read_text(encoding="utf-8"))["fotos"]}
+    wished = {i for i, f in alloc.items() if (f.get("wunsch") or f.get("eigen")) and not only}
+    for i in sorted(wished & {it["id"] for it in fotos}):
+        print(f"übersprungen: {i} (Foto-Wunsch an Pamina; Ersatz später mit --only {i})")
+    fotos = [it for it in fotos if it["id"] not in wished]
     todo = [it for it in fotos if args.redo or not list(out.glob(f"{it['datei']}.*"))]
     if not todo:
         print(f"Alle {len(fotos)} Fotos von {kw} sind schon da (--redo erzeugt sie neu).")
@@ -657,7 +661,7 @@ def main():
     ap.add_argument("--list-models", action="store_true")
     ap.add_argument("--model", default=os.environ.get("GEMINI_IMAGE_MODEL", DEFAULT_MODEL))
     ap.add_argument("--count", type=int, default=3)
-    ap.add_argument("--size", default="2K", help="Bildgröße bei Gemini 3 (1K | 2K | 4K)")
+    ap.add_argument("--size", default="2K", help="Bildgrösse bei Gemini 3 (1K | 2K | 4K)")
     ap.add_argument("--aspect")
     ap.add_argument("--slides", action="store_true")
     ap.add_argument("--base")

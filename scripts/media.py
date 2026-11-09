@@ -7,6 +7,9 @@
   media.py scan                               eigene Fotos in medien/eigene/ ohne Eintrag auflisten
   media.py add-eigen DATEI --ort garten --licht abendlicht [--farbe salbei] [--stimmung ruhig]
                                               eigenes Foto aufnehmen: sprechender Name, Metadaten (GPS!) entfernt
+                                              [--fuer 2026-KW47-F04]  erfüllt einen Foto-Wunsch
+  media.py wunsch 2026-KW47 2026-KW47-F04 "Laptop am Küchentisch abends, ohne Gesichter" [--bis "Tag 3"]
+                                              Foto-Wunsch an Pamina: dieses Foto lieber echt statt Gemini
   media.py pick SLOT [--kw 2026-KW47]         passende Medien für einen Post (JSON)
   media.py use SLOT ID [ID …] [--force]       Verwendung eintragen (Feed-Regel wird geprüft)
   media.py path ID                            Dateipfad zu einer ID
@@ -17,6 +20,10 @@ Ablage (nicht im öffentlichen Repo, siehe .gitignore):
   medien/<KW>/woche.json                                 Zuteilung der Woche
   medien/eigene/eigen-001_<ort>-<licht>.jpg              Paminas eigene Fotos
   medien/bildliste.jsonl                                 alle Fotos mit Beschreibung und Verwendung
+
+Foto-Wünsche: Für einzelne Foto-IDs kann ein eigenes Foto von Pamina gewünscht werden. Solange der Wunsch
+offen ist, erzeugt render_images.py --week dafür kein Gemini-Bild (spart Kosten); kommt kein Foto, wird es
+später gezielt nachgeholt (render_images.py … --week --only <ID>).
 
 Regeln: Pro Woche 9 Fotos (1 pro Tag, an Karussell-Tagen 2) und 12 Reel-Videos.
 Im Feed (Karussell) wird ein Foto höchstens einmal in 42 Tagen genutzt; in Stories beliebig oft.
@@ -187,7 +194,8 @@ def cmd_plan(kw):
     print("Fotos (Gemini, 9:16):")
     for p in w["fotos"]:
         info = " + ".join(f"{s} ({rows.get(s, {}).get('fmt', '?')})" for s in p["zweck"])
-        print(f"  {p['id']} · Tag {p['tag']} · {info}")
+        wish = f"  ← Foto-Wunsch an Pamina: {p['wunsch']['text']}" if p.get("wunsch") else ""
+        print(f"  {p['id']} · Tag {p['tag']} · {info}{wish}")
     print("\nVideos (von Pamina in Luma/Runway erzeugt):")
     for v in w["videos"]:
         r = rows.get(v["slot"], {})
@@ -201,13 +209,17 @@ def cmd_status(kw):
     recs = {r["id"]: r for r in read_list()}
     for k in kws:
         w = load_week(k)
-        fm = [p["id"] for p in w["fotos"] if not (recs.get(p["id"]) and photo_path(recs[p["id"]]))]
+        fm = [p["id"] for p in w["fotos"] if not p.get("wunsch") and not p.get("eigen")
+              and not (recs.get(p["id"]) and photo_path(recs[p["id"]]))]
         vm = [v["slot"] for v in w["videos"] if not find_video(k, v["slot"])]
         print(f"{k}: Fotos {len(w['fotos']) - len(fm)}/{len(w['fotos'])}, Videos {len(w['videos']) - len(vm)}/{len(w['videos'])}")
         if fm:
             print(f"  fehlende Fotos: {', '.join(fm)}")
         if vm:
             print(f"  fehlende Videos (medien/{k}/videos/<SLOT>.mp4): {', '.join(vm)}")
+        for f in open_wishes(w):
+            print(f"  Foto-Wunsch an dich: {f['id']} für {', '.join(f['zweck'])} – {f['wunsch']['text']} "
+                  f"(bis {f['wunsch']['bis']}; in medien/eigene/ legen)")
     new = unregistered_own()
     if new:
         print(f"Eigene Fotos ohne Eintrag: {len(new)} (media.py scan)")
@@ -226,7 +238,33 @@ def cmd_scan():
         print(p.relative_to(ROOT))
 
 
-def cmd_add_eigen(datei, ort, licht, farbe, stimmung):
+def save_week(w):
+    week_file(w["kw"]).write_text(json.dumps(w, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def find_week_photo(fid):
+    kw = fid.rsplit("-F", 1)[0]
+    w = load_week(kw)
+    f = next((f for f in w["fotos"] if f["id"] == fid), None)
+    if not f:
+        sys.exit(f"{fid} gehört nicht zur Zuteilung von {kw}")
+    return w, f
+
+
+def cmd_wunsch(kw, fid, text, bis):
+    w, f = find_week_photo(fid)
+    if norm_kw(kw) != w["kw"]:
+        sys.exit(f"{fid} gehört nicht zu {norm_kw(kw)}")
+    f["wunsch"] = {"text": text.strip(), "bis": bis or f"Tag {f['tag']}"}
+    save_week(w)
+    print(f"Foto-Wunsch für {fid} ({', '.join(f['zweck'])}): {text.strip()} – bis {f['wunsch']['bis']}")
+
+
+def open_wishes(w):
+    return [f for f in w["fotos"] if f.get("wunsch") and not f.get("eigen")]
+
+
+def cmd_add_eigen(datei, ort, licht, farbe, stimmung, fuer=None):
     src = Path(datei)
     if not src.exists():
         sys.exit(f"Datei nicht gefunden: {src}")
@@ -241,6 +279,11 @@ def cmd_add_eigen(datei, ort, licht, farbe, stimmung):
     upsert({"id": rid, "datei": str(dst.relative_to(ROOT)), "quelle": "eigen", "kw": None, "tag": None,
             "ort": ort, "licht": licht, "stoff": farbe, "motiv": stimmung, "zweck": ["Story"]})
     print(f"{rid}: {dst.relative_to(ROOT)} (Metadaten entfernt)")
+    if fuer:
+        w, f = find_week_photo(fuer)
+        f["eigen"] = rid
+        save_week(w)
+        print(f"Foto-Wunsch {fuer} erfüllt: {', '.join(f['zweck'])} nutzt jetzt {rid}")
 
 
 def register_photo(rid, datei, meta):
@@ -282,7 +325,15 @@ def pick(slot, kw=None):
                 out["hinweise"].append(f"Video fehlt noch: medien/{kw}/{v['datei']}")
         return out
     for f in w["fotos"]:
+        if slot in f["zweck"] and f.get("eigen") and recs.get(f["eigen"]) and photo_path(recs[f["eigen"]]):
+            r = recs[f["eigen"]]
+            out["fotos"].append({"id": r["id"], "datei": r["datei"], "ort": r.get("ort"), "ersetzt": f["id"]})
+            continue
         if slot in f["zweck"]:
+            if f.get("wunsch") and not (recs.get(f["id"]) and photo_path(recs[f["id"]])):
+                out["hinweise"].append(
+                    f"Foto-Wunsch {f['id']} offen ({f['wunsch']['text']}): Pamina fragen; ohne Foto Gemini-Ersatz mit "
+                    f"render_images.py output/woche-{kw}.md --week --only {f['id']}")
             r = recs.get(f["id"])
             path = photo_path(r) if r else None
             out["fotos"].append({"id": f["id"], "datei": str(path.relative_to(ROOT)) if path else None,
@@ -336,6 +387,8 @@ def main():
     sub.add_parser("scan")
     p = sub.add_parser("add-eigen"); p.add_argument("datei"); p.add_argument("--ort", required=True)
     p.add_argument("--licht", required=True); p.add_argument("--farbe"); p.add_argument("--stimmung")
+    p.add_argument("--fuer", help="Foto-ID der Woche, deren Wunsch damit erfüllt ist")
+    p = sub.add_parser("wunsch"); p.add_argument("kw"); p.add_argument("id"); p.add_argument("text"); p.add_argument("--bis")
     p = sub.add_parser("pick"); p.add_argument("slot", nargs="+"); p.add_argument("--kw")
     p = sub.add_parser("use"); p.add_argument("slot"); p.add_argument("ids", nargs="+"); p.add_argument("--force", action="store_true")
     p = sub.add_parser("path"); p.add_argument("id")
@@ -349,7 +402,9 @@ def main():
     elif a.cmd == "scan":
         cmd_scan()
     elif a.cmd == "add-eigen":
-        cmd_add_eigen(a.datei, a.ort, a.licht, a.farbe, a.stimmung)
+        cmd_add_eigen(a.datei, a.ort, a.licht, a.farbe, a.stimmung, a.fuer)
+    elif a.cmd == "wunsch":
+        cmd_wunsch(a.kw, a.id, a.text, a.bis)
     elif a.cmd == "pick":
         print(json.dumps(pick(" ".join(a.slot), a.kw), ensure_ascii=False, indent=2))
     elif a.cmd == "use":

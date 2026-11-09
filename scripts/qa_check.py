@@ -334,6 +334,11 @@ def run_checks(text, args, slug):
     if "magic words" in low:
         R.warn(g, "Der interne Begriff 'Magic Words' steht im Post-Text (gehört nicht in den Content)")
 
+    # Schweizer Schreibweise
+    g = R.group("Schweizer Schreibweise: „ss“ statt „ß“")
+    for m in list(re.finditer(r"\S*ß\S*", content))[:5]:
+        R.fail(g, f"„ß“ gefunden: {m.group(0)!r} → {m.group(0).replace('ß', 'ss')!r}")
+
     # 3 Namen
     g = R.group("Kein Name des Erstellers, kein Kursname")
     names = lines_of(Path(args.names))
@@ -393,13 +398,13 @@ def run_checks(text, args, slug):
         if n_sl != 3:
             R.fail(g, f"Story-Sequenz braucht genau 3 Slides (gefunden: {n_sl})")
 
-    g = R.group("Zitat mit Quelle zugeordnet und als sinngemäß markiert" if typ == "Leuchtturm"
+    g = R.group("Zitat mit Quelle zugeordnet und als sinngemäss markiert" if typ == "Leuchtturm"
                 else "Spiegel-Hook ohne Zitat, mit Trigger")
     if typ == "Leuchtturm":
         if not (field(s23, "Quelle") or field(s23, "Zitat")):
             R.fail(g, "Leuchtturm ohne Quellenangabe (**Quelle:** / **Zitat:**)")
-        if "sinngemäß" not in s23.lower():
-            R.fail(g, "Übersetzung nicht als 'sinngemäß' markiert")
+        if "sinngemäss" not in s23.lower():
+            R.fail(g, "Übersetzung nicht als 'sinngemäss' markiert")
     elif typ == "Spiegel":
         if field(s23, "Quelle"):
             R.warn(g, "Spiegel enthält eine Quellenzeile – im Spiegel keine bekannten Zitate")
@@ -525,7 +530,7 @@ def run_checks(text, args, slug):
     if pitch:
         g = R.group("Manychat-Flow vollständig (Transparenz, Affiliate-Hinweis, Buttons, Signatur)")
         need = {
-            "{{Vorname}}": "Begrüßung mit {{Vorname}}",
+            "{{Vorname}}": "Begrüssung mit {{Vorname}}",
             "automatisch": "Hinweis, dass die Nachricht automatisch ist",
             "Affiliate-Link, ich erhalte ggf. eine Provision. Für dich bleibt es kostenlos.": "Affiliate-Hinweis (wörtlich)",
             "Ich war anfangs selbst total planlos.": "Pflichtsatz 'Ich war anfangs selbst total planlos.'",
