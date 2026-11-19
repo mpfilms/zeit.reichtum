@@ -317,16 +317,19 @@ def facebook_story_videos(page_id, token, urls, publish=True):
             d = {}
         if st >= 300 or d.get("error"):
             raise Fehler(redact(f"Facebook-Upload der Story {i} fehlgeschlagen: HTTP {st} {str(d)[:200]}"))
-        for _ in range(40):  # warten, bis Facebook das Video verarbeitet hat
+        # Facebook verarbeitet Story-Videos erst nach „finish“ (start → upload → finish). Vorher nur warten, bis der
+        # Upload komplett ist; auf video_status „ready“ zu warten hängt sonst (19.11.2026: T04-S nie fertig).
+        for _ in range(40):
             status = graph("GET", vid, ptoken, fields="status").get("status", {})
-            vs = status.get("video_status")
-            if vs == "ready":
+            up = (status.get("uploading_phase") or {}).get("status")
+            err = (status.get("processing_phase") or {}).get("error") or (status.get("uploading_phase") or {}).get("error")
+            if status.get("video_status") == "error" or up == "error" or err:
+                raise Fehler(redact(f"Facebook konnte Story-Video {i} nicht annehmen: {str(err or status)[:200]}"))
+            if up == "complete" or status.get("video_status") in ("ready", "upload_complete"):
                 break
-            if vs == "error":
-                raise Fehler(f"Facebook konnte Story-Video {i} nicht verarbeiten")
             time.sleep(3)
         else:
-            raise Fehler(f"Facebook-Story-Video {i} nach 2 Minuten nicht fertig")
+            raise Fehler(f"Facebook-Story-Video {i}: Upload nach 2 Minuten nicht abgeschlossen")
         if not publish:
             res.append({"video_id": vid})
             print(f"  Facebook-Story {i}/{len(urls)}: Video akzeptiert (nicht veröffentlicht)")
