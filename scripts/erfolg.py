@@ -231,14 +231,43 @@ def cmd_build(slot, datum, datei):
 
 
 def cmd_link_slide(slot):
+    """Letzte Slide zum Posten mit Link-Sticker.
+
+    Steht im Post unter Agent 2 & 3 ein Block „**Link-Slide:**“, wird Slide 3 mit genau diesem Text neu gerendert
+    (ohne „START“, endet auf „:“, darunter setzt Pamina den Link-Sticker). Sonst Kopie der letzten Slide."""
     slot = plan.norm_slot(slot)
+    post = ROOT / "output" / f"{slot}.md"
+    out = ROOT / "output" / slot / "link-slide.jpg"
+    from PIL import Image
+    text = post.read_text(encoding="utf-8") if post.exists() else ""
+    m = re.search(r"^\*\*Link-Slide:\*\*[ \t]*\n(.+?)(?=\n[ \t]*\n|\n\*\*|\Z)", text, re.S | re.M)
+    if m:
+        body = m.group(1).strip()
+        if re.search(r"start", body, re.I):
+            raise Fehler("Link-Slide-Text enthält „START“ – dort gehört nur der Text über dem Link-Sticker hin")
+        tmp_dir = ROOT / "output" / slot / "_link"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        sm = re.search(r"(\*\*Slide 3[^\n]*\*\*[ \t]*\n)(.+?)(?=\n[ \t]*\n|\Z)", text, re.S)
+        if not sm:
+            raise Fehler(f"Slide 3 in output/{slot}.md nicht gefunden")
+        tmp_md = tmp_dir / f"{slot}.md"
+        tmp_md.write_text(text[:sm.start(2)] + body + text[sm.end(2):], encoding="utf-8")
+        day = int(re.match(r"T(\d\d)", slot).group(1))
+        import subprocess
+        subprocess.run([sys.executable, str(ROOT / "scripts" / "render_images.py"), str(tmp_md), "--pool", "--force",
+                        "--design", plan.slide_design(day), "--out", str(tmp_dir)], check=True,
+                       stdout=subprocess.DEVNULL)
+        src = tmp_dir / "slides" / "slide-3.png"
+        if not src.exists():
+            raise Fehler("Link-Slide konnte nicht gerendert werden")
+        Image.open(src).convert("RGB").save(out, quality=92)
+        print(f"{out.relative_to(ROOT)} – eigener Text ohne „START“, darunter den Link-Sticker setzen")
+        return
     d = ROOT / "output" / slot / "slides"
     num = lambda p: int(re.search(r"(\d+)", p.stem).group(1))
     slides = sorted(d.glob("slide-*.png"), key=num) if d.exists() else []
     if not slides:
         raise Fehler(f"Keine Slides in output/{slot}/slides/")
-    from PIL import Image
-    out = ROOT / "output" / slot / "link-slide.jpg"
     Image.open(slides[-1]).convert("RGB").save(out, quality=92)
     print(f"{out.relative_to(ROOT)} – zum Posten mit Link-Sticker (Button-Text frei wählbar)")
 
