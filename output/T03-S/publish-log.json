@@ -1,0 +1,38 @@
+{
+  "slot": "T03-S",
+  "modus": "publish",
+  "instagram": {
+    "stories": [
+      {
+        "container": "17919762636533001",
+        "media_id": "18122631458289685"
+      },
+      {
+        "container": "17919762678533001",
+        "media_id": "18212942200371433"
+      },
+      {
+        "container": "17919762723533001",
+        "media_id": "18113979494173973"
+      }
+    ],
+    "veroeffentlicht": true
+  },
+  "facebook": {
+    "stories": [
+      {
+        "foto_id": "122109818505527644",
+        "story_id": "1816427125940601"
+      },
+      {
+        "foto_id": "122109818571527644",
+        "story_id": "29607108288975124"
+      },
+      {
+        "foto_id": "122109818673527644",
+        "story_id": "2372569276830924"
+      }
+    ],
+    "veroeffentlicht": true
+  }
+}

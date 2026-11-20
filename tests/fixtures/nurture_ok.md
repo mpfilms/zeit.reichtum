@@ -60,7 +60,7 @@ Very slow, gentle waves rolling in and retreating at the lower edge of the frame
 - **Variante:** nurture
 **Caption:**
 
-Werbung 🤍 | Folge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest.
+Werbung 🤍
 
 Marc Aurel schrieb sinngemäss, dass ein Mensch nirgends mehr Ruhe findet als in der eigenen Seele.
 
@@ -69,6 +69,8 @@ Als Mama ist genau dieser Rückzug oft der erste Platz, den der #MentalLoad auff
 Du musst nicht jeden Abend noch etwas leisten, um wertvoll zu sein.
 
 Welchen kleinen Moment nur für dich erlaubst du dir heute, ganz ohne schlechtes Gewissen?
+
+Folge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest.
 
 ## Agent 8 · SEO Specialist
 - **Eingewebte Keywords:** Mental Load, Mamaleben

@@ -58,7 +58,7 @@ The orchestrator assembles `output/<slot>.md`, runs `qa_check.py --final --log` 
 | `CLAUDE.md` | project rules; imports `data/brand-dna.md` |
 | `.claude/agents/zr-01 … zr-11` | the 11 separate subagents (own prompt, own tool permissions) |
 | `.claude/skills/{start,create-post,content-plan,quote-pack,woche-vorbereiten}` | entry points / orchestration |
-| `data/brand-dna.md` | brand DNA, blacklist, wording, 75/25, the two darkening formulas |
+| `data/brand-dna.md` | brand DNA, positioning (scene first, wisdom as the twist), blacklist, wording, 50/50, the two darkening formulas |
 | `data/quotes.md` | vetted quote bank (extend only with verified sources) |
 | `data/content-plan.md` | 14-day plan, slot IDs like `T05-R1` (day 5, reel 1), `T03-K` (carousel) |
 | `data/prompt-history.jsonl` | memory for motif/audio/variables so nothing repeats |
@@ -78,7 +78,7 @@ Blacklist · forbidden names · exact caption header · ≤ 2 hashtags, never a 
 - Stories have no caption; Agent 7 outputs the mandatory "Werbung" header (+ optional sticker line).
 - Sunday Mode caption: ≤ 2 sentences in total, the CTA counts.
 - Audio: Agent 4 names a genre/sound, not a specific track (no invented chart titles).
-- Plan: per day one pitch and one nurture in the feed (odd days the first post is pitch); every 4th reel is a mirror (75/25); stories pitch on even days, never on Sunday.
+- Plan: per day one pitch and one nurture in the feed (odd days the first post is pitch); reels and stories alternate lighthouse/mirror (50/50, since 2026-11-20); stories pitch on even days, never on Sunday.
 
 ## Develop
 ```bash

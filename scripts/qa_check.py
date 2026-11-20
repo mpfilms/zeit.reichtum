@@ -2,7 +2,7 @@
 """Deterministische Qualitätsprüfung für @zeit.reichtum-Posts (Hilfsskript für Agent 10).
 
   qa_check.py output/T05-R1.md [--final] [--checklist] [--log] [--history PFAD] [--slug NAME] [--names PFAD]
-  qa_check.py output/woche-2026-KW47.md --week [--log]   Wochen-Prompts (9 Fotos, 12 Videos) prüfen
+  qa_check.py output/woche-2026-KW47.md --week [--log]   Wochen-Prompts (18 Fotos) prüfen
 
 --final      verlangt zusätzlich den Abschnitt "Agent 10" (fertige Checkliste)
 --checklist  gibt die Checkliste (✅/⚠️/❌) als Markdown aus
@@ -18,7 +18,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-HEADER = "Werbung 🤍 | Folge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest."
+# Kennzeichnung vorne (muss sofort sichtbar sein), Folge-Satz als Abschluss am Ende (Pamina, 2026-11-19)
+HEADER = "Werbung 🤍"
+FOOTER = "Folge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest."
 IMG_FORMULA = (
     "Slightly underexposed by 10-15%, subtle dark cinematic color grading, muted and dimmed natural "
     "lighting, soft natural vignette, optimized for white text overlay. The earthy tones remain warm "
@@ -29,6 +31,13 @@ VID_FORMULA = (
     "warmth, maintaining high contrast for white text. Static camera, seamless loop."
 )
 PARAMS = "--ar 9:16 --style raw --v 6.1"
+# Die wiederkehrende Frau („die Frau“): immer dieselbe, immer von hinten. Wörtlich in Foto-/Video-Prompts.
+FIGURE = (
+    "the same woman, seen only from behind: fair skin, shoulder-length straight medium-brown hair, "
+    "slim build of average height; her face is never visible, "
+    "no profile, she is turned away from the camera"
+)
+NO_TEXT = "no text, no logos"
 ORDER = ["1", "2&3", "4", "5", "6", "7", "8", "9", "10", "11"]
 VAR_NAMES = ["Licht/Tageszeit", "Requisit", "Stoff-Farbe", "Kamera/Bewegung"]
 VAR_KEYS = ["licht", "requisit", "stoff", "kamera"]
@@ -124,8 +133,36 @@ def parse_vars(sec6):
     return found
 
 
-def check_image_prompt(R, g, p, label=""):
+FIRE_RE = re.compile(r"\b(fire|firelight|fireplace|flames?|embers?|burning|burns|crackling|candles?|candlelight|tealights?)\b", re.I)
+FIRE_SOURCE_RE = re.compile(r"\b(candles?|tealights?|lantern|fireplace|wood[- ]burning stove|stove)\b", re.I)
+FIRE_GUARD = "nothing else is burning"
+
+
+def check_fire(R, g, p, label="", strict=True):
+    """Feuer/Flammen nur aus einer sichtbaren, benannten Quelle (Kerze im Halter, Kamin mit Glastür).
+    Grund (19.11.2026, T04-R1): „firelight flickers on the wall“ ohne sichtbaren Kamin → das Video zeigte Flammen hinter dem Sofa."""
+    low = p.lower().replace(IMG_FORMULA.lower(), "").replace(VID_FORMULA.lower(), "")
+    if not FIRE_RE.search(low):
+        return
+    # Schon erzeugte Pool-Medien (Prompt wörtlich übernommen): nur Warnung, das Video/Foto ist gesichtet
+    if not strict:
+        base = R
+        R = type("W", (), {"fail": lambda self, g_, m: base.warn(g_, m + " (Pool-Medium: Bild/Video ansehen)")})()
+    if re.search(r"\bfirelight\b|\bglow of (the )?fire\b|\bfire glow\b", low):
+        R.fail(g, f"{label}'firelight'/Feuerschein ohne Quelle ist verboten: Lichtquelle sichtbar benennen (z. B. candle in a holder)")
+    if not FIRE_SOURCE_RE.search(low):
+        R.fail(g, f"{label}Feuer/Flamme erwähnt, aber keine sichtbare Quelle (candle, tealight, lantern, fireplace) benannt")
+    if "fireplace" in low or "stove" in low:
+        if not re.search(r"glass door|behind glass|enclosed", low):
+            R.fail(g, f"{label}Kamin nur geschlossen mit Glastür ('behind a glass door'), klar sichtbar im Bild")
+    if FIRE_GUARD not in low:
+        R.fail(g, f"{label}Bei Kerzen/Feuer fehlt der Schutzsatz '...{FIRE_GUARD}...' (z. B. 'The flame stays only inside the candle, nothing else is burning.')")
+
+
+def check_image_prompt(R, g, p, label="", strict=False, fire_strict=True):
     p = p.strip()
+    check_figure_and_text(R, g, p, label, strict)
+    check_fire(R, g, p, label, fire_strict)
     if p.count(IMG_FORMULA) != 1:
         R.fail(g, f"{label}Bild-Formel nicht (genau einmal) wörtlich im Midjourney-Prompt")
     else:
@@ -139,7 +176,9 @@ def check_image_prompt(R, g, p, label=""):
         R.fail(g, f"{label}Midjourney-Prompt verlangt keinen 'negative space' für den Text")
 
 
-def check_video_prompt(R, g, b, label=""):
+def check_video_prompt(R, g, b, label="", strict=False, fire_strict=True):
+    check_figure_and_text(R, g, b, label, strict)
+    check_fire(R, g, b, label, fire_strict)
     if not b.strip().endswith(VID_FORMULA):
         R.fail(g, f"{label}Motion-Prompt endet nicht wörtlich mit der Video-Formel")
     if re.search(r"camera (move|pan|zoom|dolly|tilt)", b.lower()):
@@ -147,11 +186,32 @@ def check_video_prompt(R, g, b, label=""):
 
 
 def people_words(p):
-    pre = re.sub(r"\b(no|without|zero)\s+(people|persons?|humans?|figures?)\b", "", p.lower())
+    """Verbotene Menschen-Wörter. Mit der wörtlichen FIGURE-Beschreibung sind „woman“, „her hands“ erlaubt,
+    Gesichter, Kinder und weitere Personen nie."""
+    low = p.lower()
+    figure = FIGURE.lower() in low
+    pre = low.replace(FIGURE.lower(), "")
+    pre = re.sub(r"\b(no|without|zero)\s+(other\s+)?(people|persons?|humans?|figures?|hands?|faces?|body\s+parts?)\b",
+                 "", pre)
+    pre = re.sub(r"\bface[\s-](up|down)\b", "", pre)  # „lies face up“ = aufgeschlagen, kein Gesicht
     pre = pre.replace(IMG_FORMULA.lower(), "").replace(VID_FORMULA.lower(), "")
-    return sorted(set(re.findall(
-        r"\b(people|person|woman|women|man|men|child|children|girl|boy|baby|mother|mom|face|faces|hands?)\b", pre)))
+    words = r"people|person|woman|women|man|men|child|children|girl|boy|baby|mother|mom|face|faces|hands?|profile"
+    bad = set(re.findall(rf"\b({words})\b", pre))
+    if figure:
+        bad -= {"woman", "hand", "hands"}
+    return sorted(bad)
 
+
+def check_figure_and_text(R, g, p, label, strict):
+    low = p.lower()
+    if re.search(r"\bwoman\b", low.replace(FIGURE.lower(), "")) and FIGURE.lower() not in low:
+        R.fail(g, f"{label}Frau im Prompt ohne die wörtliche Beschreibung (immer dieselbe Frau, von hinten, Kleidung frei)")
+    if NO_TEXT not in low:
+        (R.fail if strict else R.warn)(g, f"{label}'{NO_TEXT}' fehlt im Prompt")
+
+
+# Video-IDs im Pool: alte Wochen-Videos, Monats-Videos, eigene Videos
+VIDEO_ID = r"(-T\d\d-R[12]|^\d{4}-\d\d-V\d\d|^eigen-v\d+)$"
 
 # ---------- Wochen-Datei (Medien-Pool) ----------
 WEEK_HEAD = re.compile(r"(?m)^### +(\S+) · (Foto|Video) · Tag (\d+)(?: · (.*))?$")
@@ -214,14 +274,16 @@ def run_week_checks(text, args):
         if it["art"] == "foto":
             if not re.fullmatch(re.escape(it["id"]) + r"_[a-z0-9-]+", it["datei"]):
                 R.fail(g, f"{lab}Dateiname muss '{it['id']}_ort-licht-farbe' sein (gefunden: {it['datei']!r})")
-            check_image_prompt(R, g, it["prompt"], lab)
+            check_image_prompt(R, g, it["prompt"], lab, strict=True)
+            if not re.search(r"1080\s*[x×]\s*1920|high resolution", it["prompt"], re.I):
+                R.warn(g, f"{lab}keine Auflösung im Foto-Prompt (z. B. 'high resolution, 1080x1920 or larger')")
         else:
             slot = it["id"].rsplit("-", 2)
             if it["datei"] != f"{slot[-2]}-{slot[-1]}":
                 R.fail(g, f"{lab}Dateiname muss der Slot sein ({slot[-2]}-{slot[-1]}), gefunden: {it['datei']!r}")
             if "--ar" in it["prompt"]:
                 R.fail(g, f"{lab}Video-Prompt enthält Midjourney-Parameter")
-            check_video_prompt(R, g, it["prompt"], lab)
+            check_video_prompt(R, g, it["prompt"], lab, strict=True)
             if people_words(it["prompt"]):
                 R.fail(g, f"{lab}Video-Prompt erwähnt Menschen/Körperteile: {people_words(it['prompt'])}")
             if len(it["prompt"].split()) < len(VID_FORMULA.split()) + 25:
@@ -232,14 +294,14 @@ def run_week_checks(text, args):
     by_day = {}
     for it in fotos:
         by_day.setdefault(it["tag"], []).append(it)
-    for day, pair in by_day.items():
-        if len(pair) == 2:
-            a, b = pair
+    import itertools
+    for day, group in by_day.items():  # alle Fotos eines Tags (2 Stories, an Karussell-Tagen + 2 Karussell) verschieden
+        for a, b in itertools.combinations(group, 2):
             for what, x, y in (("Ort/Szene", a["ort"], b["ort"]),
                                ("Stoff-Farbe", a["vars"].get("Stoff-Farbe"), b["vars"].get("Stoff-Farbe")),
                                ("Requisit", a["vars"].get("Requisit"), b["vars"].get("Requisit"))):
                 if x and y and norm(x) == norm(y):
-                    R.fail(g, f"Karussell Tag {day}: {a['id']} und {b['id']} haben dieselbe {what} ({x!r})")
+                    R.fail(g, f"Tag {day}: {a['id']} und {b['id']} haben dieselbe {what} ({x!r})")
     seen = {}
     for it in items:
         for key, name in zip(VAR_KEYS[:3], VAR_NAMES[:3]):
@@ -268,6 +330,94 @@ def run_week_checks(text, args):
     return R, kw, items
 
 
+# ---------- Monats-Videos (output/videos-<YYYY-MM>.md) ----------
+MONTH_HEAD = re.compile(r"(?m)^### +(\S+) · Video · Fokus ([A-DS])\s*$")
+
+
+def parse_month(text):
+    text = strip_comments(text)
+    m = re.search(r"(?m)^# Monats-Videos (\d{4}-\d\d)", text)
+    heads = list(MONTH_HEAD.finditer(text))
+    items = []
+    for i, h in enumerate(heads):
+        body = text[h.end(): heads[i + 1].start() if i + 1 < len(heads) else len(text)]
+        body = body.split("\n## ", 1)[0]
+        codes = re.findall(r"```[^\n]*\n(.*?)```", body, re.S)
+        items.append({
+            "id": h.group(1), "art": "video", "fokus": h.group(2), "vars": parse_vars(body),
+            "ort": field(body, "Ort/Szene"), "motiv": field(body, "Motiv"),
+            "datei": (field(body, "Dateiname") or "").strip().strip("`"),
+            "prompt": codes[0].strip() if len(codes) == 1 else None, "n_codes": len(codes),
+        })
+    return (m.group(1) if m else None), items
+
+
+def run_month_checks(text, args):
+    R = Report()
+    mon, items = parse_month(text)
+    g = R.group("Monats-Datei vollständig (Monat, alle 18 Video-IDs der Zuteilung)")
+    if not mon:
+        R.fail(g, "Titelzeile '# Monats-Videos 2026-12' fehlt")
+    alloc = ROOT / "medien" / "videos" / (mon or "-") / "monat.json"
+    if alloc.exists():
+        want = {v["id"]: v["fokus"] for v in json.loads(alloc.read_text(encoding="utf-8"))["videos"]}
+        have = {it["id"]: it["fokus"] for it in items}
+        for i, fk in want.items():
+            if i not in have:
+                R.fail(g, f"{i} fehlt")
+            elif have[i] != fk:
+                R.warn(g, f"{i}: Fokus {have[i]}, Zuteilung sagt {fk}")
+        for i in have:
+            if i not in want:
+                R.fail(g, f"{i} gehört nicht zur Zuteilung von {mon}")
+    else:
+        R.warn(g, f"Keine Zuteilung medien/videos/{mon}/monat.json gefunden (media.py monat-init)")
+    if len({it["id"] for it in items}) != len(items):
+        R.fail(g, "Doppelte IDs")
+
+    g = R.group("Je Video: Variablen, Ort, Dateiname = ID, genau ein Text-to-Video-Prompt mit wörtlicher Formel")
+    for it in items:
+        lab = f"{it['id']}: "
+        miss = [n for n in VAR_NAMES if n not in it["vars"]]
+        if miss:
+            R.fail(g, f"{lab}Variablen fehlen: {miss}")
+        if not it["ort"]:
+            R.fail(g, f"{lab}'- **Ort/Szene:**' fehlt")
+        if it["datei"] != it["id"]:
+            R.fail(g, f"{lab}Dateiname muss die ID sein ({it['id']}), gefunden: {it['datei']!r}")
+        if it["n_codes"] != 1:
+            R.fail(g, f"{lab}genau ein Prompt-Codeblock erwartet (gefunden: {it['n_codes']})")
+            continue
+        if "--ar" in it["prompt"]:
+            R.fail(g, f"{lab}Video-Prompt enthält Midjourney-Parameter")
+        check_video_prompt(R, g, it["prompt"], lab, strict=True)
+        if not re.search(r"1080\s*[x×]\s*1920", it["prompt"]):
+            R.fail(g, f"{lab}Auflösung fehlt – Video-Prompt muss '1080x1920' (Full HD, 9:16) nennen")
+        if people_words(it["prompt"]):
+            R.fail(g, f"{lab}Video-Prompt erwähnt Menschen/Körperteile: {people_words(it['prompt'])}")
+        if len(it["prompt"].split()) < len(VID_FORMULA.split()) + 25:
+            R.warn(g, f"{lab}Video-Prompt beschreibt die Szene kaum (Ort, Licht, Requisit, Bewegung, Geräusche)")
+
+    g = R.group("Abwechslung: Orte höchstens 2× im Monat, Variablen möglichst nicht doppelt")
+    orte = {}
+    for it in items:
+        if it["ort"]:
+            orte.setdefault(norm(it["ort"]), []).append(it["id"])
+    for o, ids in orte.items():
+        if len(ids) > 2:
+            R.fail(g, f"Ort {o!r} {len(ids)}× ({', '.join(ids)}) – höchstens 2× pro Monat")
+    seen = {}
+    for it in items:
+        for name in VAR_NAMES[:3]:
+            v = it["vars"].get(name)
+            if v:
+                k = (name, norm(v))
+                if k in seen:
+                    R.warn(g, f"{name} doppelt: {seen[k]} und {it['id']} ({v!r})")
+                seen.setdefault(k, it["id"])
+    return R, mon, items
+
+
 def log_week(path, items):
     ids = {it["id"] for it in items}
     old = [r for r in read_history(path) if r.get("slug") not in ids]
@@ -281,6 +431,43 @@ def log_week(path, items):
 
 
 # ---------- Prüfungen ----------
+DANGLING_END = {"ein", "eine", "einen", "einem", "einer", "des", "und", "oder", "aber", "dass", "weil", "wenn",
+                "dein", "deine", "deinen", "deinem", "deiner", "mein", "meine", "meinen", "meinem", "meiner",
+                "unser", "unsere", "euer", "eure"}
+POSS_ADV = re.compile(r"\b((?:dein|mein|unser|euer|eur)(?:e|en|em|er|es)?)\s+"
+                      r"(heute|gestern|morgen|jetzt|schon|noch|immer|dann|damals)\b", re.I)
+
+
+def language_lint(text):
+    """Deterministische Grobprüfung deutscher Texte. Meldet nur eindeutige Fehler."""
+    out = []
+    plain = re.sub(r"(?m)^\s*(#+|>)\s*", "", text)
+    plain = re.sub(r"(==|\*\*|__|\*|`)", "", plain)
+    plain = re.sub(r"https?://\S+|@\w[\w.]*|\w+\.\w{2,4}/\S*", " ", plain)
+    flat = re.sub(r"\s+", " ", plain)
+    for m in list(re.finditer(r"\b([A-Za-zÄÖÜäöüß]{2,})\s+\1\b", flat, re.I))[:5]:
+        if m.group(1).lower() not in ("sehr", "bye", "ha", "haha"):
+            out.append(f"Doppeltes Wort: „{m.group(0)}“")
+    for m in list(POSS_ADV.finditer(flat))[:5]:
+        out.append(f"Besitzwort ohne Nomen: „{m.group(0)}“ – Nomen ergänzen (z. B. „deine Zeit heute“)")
+    for m in list(re.finditer(r"\S*[a-zäöüß]{3,}[.!?][A-ZÄÖÜ][a-zäöüß]\S*", flat))[:5]:
+        out.append(f"Leerzeichen nach Satzzeichen fehlt: „{m.group(0)}“")
+    for m in list(re.finditer(r"\S*[A-Za-zÄÖÜäöüß],[A-Za-zÄÖÜäöüß]\S*", flat))[:5]:
+        out.append(f"Leerzeichen nach Komma fehlt: „{m.group(0)}“")
+    for m in list(re.finditer(r"\w [,.;:!?](?!\.)(?=\s|$)", flat))[:5]:
+        out.append(f"Leerzeichen vor Satzzeichen: „{m.group(0)}“")
+    for line in plain.splitlines():
+        line = line.strip().strip("„“\"”_ ")
+        if not line:
+            continue
+        for sent in re.split(r"(?<=[.!?:])\s+", line):
+            words = re.findall(r"[A-Za-zÄÖÜäöüß]+", sent)
+            if len(words) >= 2 and words[-1].lower() in DANGLING_END and sent.rstrip().endswith(("?", "!", ".")):
+                out.append(f"Satz bricht ab (endet auf „{words[-1]}“): „{sent.strip()}“")
+    return out
+
+
+
 def run_checks(text, args, slug):
     R = Report()
     secs, order = split_sections(text)
@@ -334,10 +521,21 @@ def run_checks(text, args, slug):
     if "magic words" in low:
         R.warn(g, "Der interne Begriff 'Magic Words' steht im Post-Text (gehört nicht in den Content)")
 
+    # Alltagssprache statt Fachwort
+    g = R.group("Alltagssprache: kein „stoisch/Stoiker/Stoizismus“ im Content")
+    for m in list(re.finditer(r"\b\w*stoi(?:sch|ker|zismus)\w*", content, re.I))[:5]:
+        R.fail(g, f"Fachwort {m.group(0)!r} – verständlich umschreiben (z. B. „gelassen“, „alte Weisheit“, „was Marc Aurel sich fragte“)")
+
     # Schweizer Schreibweise
     g = R.group("Schweizer Schreibweise: „ss“ statt „ß“")
     for m in list(re.finditer(r"\S*ß\S*", content))[:5]:
         R.fail(g, f"„ß“ gefunden: {m.group(0)!r} → {m.group(0).replace('ß', 'ss')!r}")
+
+    # Sprach-Lint (ersetzt keine Wort-für-Wort-Prüfung durch Agent 10, fängt aber grobe Fehler sicher ab)
+    g = R.group("Sprache: keine groben Satz-, Wort- oder Satzzeichenfehler im sichtbaren Text")
+    visible = "\n".join(clean.get(k, "") for k in ("2&3", "7", "11"))
+    for msg in language_lint(visible):
+        R.fail(g, msg)
 
     # 3 Namen
     g = R.group("Kein Name des Erstellers, kein Kursname")
@@ -356,11 +554,19 @@ def run_checks(text, args, slug):
     caption = cm.group(1).strip() if cm else ""
     cap_lines = [l.strip() for l in caption.splitlines() if l.strip()]
 
-    g = R.group("Kopfzeile exakt vorhanden (erste Zeile der Caption)")
+    g = R.group("Kennzeichnung „Werbung 🤍“ als erste Zeile, Folge-Satz als letzte Zeile")
     if not cm:
         R.fail(g, "Agent 7: Marker '**Caption:**' fehlt")
     elif not cap_lines or cap_lines[0] != HEADER:
-        R.fail(g, f"Erste Caption-Zeile ist nicht exakt die Pflicht-Kopfzeile: {cap_lines[:1]}")
+        R.fail(g, f"Erste Caption-Zeile ist nicht exakt die Kennzeichnung {HEADER!r}: {cap_lines[:1]}")
+    if cm and fmt != "story":
+        if not cap_lines or cap_lines[-1] != FOOTER:
+            R.fail(g, f"Letzte Caption-Zeile ist nicht exakt der Folge-Satz {FOOTER!r}: {cap_lines[-1:]}")
+        else:  # ab hier wird der Inhalt ohne den festen Schluss geprüft (CTA/Frage stehen davor)
+            cap_lines = cap_lines[:-1]
+            caption = caption.rstrip()[: -len(FOOTER)].rstrip()
+    if FOOTER in caption:
+        R.fail(g, "Folge-Satz steht mitten in der Caption (gehört nur ans Ende)")
 
     g = R.group("Kein Hashtag-Block, höchstens 2 Hashtags direkt im Satz")
     tags = re.findall(r"#\w+", caption)
@@ -419,6 +625,8 @@ def run_checks(text, args, slug):
         if fmt == "story":
             if len(story_kw) != 1:
                 R.fail(g, f"Story-Pitch: Slide 3 braucht genau einen 'Antworte mit …'-CTA (gefunden: {story_kw})")
+            elif story_kw[0] != "START":
+                R.fail(g, f"Story-Pitch: Keyword ist '{story_kw[0]}' – Story-Antworten laufen über „START“ (Manychat, 2026-11-19)")
         else:
             if len(kw) != 1:
                 R.fail(g, f"Pitch braucht genau ein Keyword in Anführungszeichen (gefunden: {kw})")
@@ -467,6 +675,30 @@ def run_checks(text, args, slug):
             if nb != 4:
                 R.fail(g, f"Variante b = Vorteilsliste mit genau 4 ✨-Zeilen (gefunden: {nb})")
 
+    # Reel-Typ B: Video trägt die Geschichte, Caption ergänzt nur (keine Wiederholung)
+    reel_typ = (field(s1, "Reel-Typ") or "").strip().upper()[:1]
+    if fmt == "reel" and reel_typ == "B" and cap_lines:
+        g = R.group("Reel-Typ B: Textbox 20-35 Wörter, Caption kurz und ohne Wiederholung der Textbox")
+        m = re.search(r"\*\*Einblendung 2[^*]*\*\*\s*(.*?)(?=\*\*Einblendung|\Z)", s23, re.S)
+        box = re.sub(r"[*_=]", "", m.group(1)) if m else ""
+        nbox = len(re.findall(r"\w+", box))
+        if not box:
+            R.warn(g, "Textbox (Einblendung 2) nicht gefunden")
+        elif nbox > 35:
+            R.fail(g, f"Textbox hat {nbox} Wörter (höchstens 35)")
+        elif nbox < 20:
+            R.warn(g, f"Textbox hat nur {nbox} Wörter (Ziel 20-35)")
+        def grams(t, n=4):
+            w = re.findall(r"\w+", t.lower())
+            return {" ".join(w[i:i + n]) for i in range(len(w) - n + 1)}
+        hook_txt = re.search(r"\*\*Einblendung 1[^*]*\*\*\s*(.*?)(?=\*\*Quelle|\*\*Einblendung|\Z)", s23, re.S)
+        allowed = grams(hook_txt.group(1)) if hook_txt else set()   # Zitat darf in der Caption stehen
+        dup = sorted((grams(box) & grams(body_text)) - allowed)
+        if dup:
+            R.fail(g, f"Caption wiederholt die Textbox ({len(dup)} gleiche Wortfolgen, z. B. „{dup[0]}“) – nur Neues ergänzen")
+        if not pitch and not sunday and len(sentences(body_text)) > 5:
+            R.warn(g, f"Nurture-Caption bei Typ B hat {len(sentences(body_text))} Sätze – Ziel: höchstens ca. 4")
+
     # Formeln
     s6 = clean.get("6", "")
     blocks = re.findall(r"```[^\n]*\n(.*?)```", s6, re.S)
@@ -477,11 +709,13 @@ def run_checks(text, args, slug):
     if not mj and not (pool and fmt in ("reel", "story")):
         R.fail(g, "Midjourney-Prompt (Codeblock mit --ar) fehlt")
     for p in mj:
-        check_image_prompt(R, g, p)
-    if fmt == "reel" and not motion:
+        check_image_prompt(R, g, p, fire_strict=not pool)
+    own_video = any(re.match(r"^eigen-v\d+$", i) for i in pool) or (
+        bool(pool) and "kein prompt hinterlegt" in s6.lower())  # Pool-Video ohne passenden Prompt (z. B. V19-V30)
+    if fmt == "reel" and not motion and not own_video:
         R.fail(g, "Motion-Prompt (Luma/Runway) fehlt")
     for b in motion[:1] if not pool else motion:
-        check_video_prompt(R, g, b)
+        check_video_prompt(R, g, b, fire_strict=not pool)
 
     if pool:
         # Medien aus dem Wochen-Pool: Prompts sind schon in der Wochen-Datei geprüft und geloggt
@@ -489,10 +723,10 @@ def run_checks(text, args, slug):
         vars_ = {}
         if fmt == "karussell" and (len(set(pool)) < 2 or len(mj) < 2):
             R.fail(g, f"Karussell braucht zwei verschiedene Pool-Fotos mit je eigenem Prompt (Pool: {pool}, Prompts: {len(mj)})")
-        if fmt == "story" and not [i for i in pool if not re.search(r"-T\d\d-R[12]$", i)]:
+        if fmt == "story" and not [i for i in pool if not re.search(VIDEO_ID, i)]:
             R.fail(g, f"Story braucht mindestens ein Foto aus dem Pool (gefunden: {pool})")
-        if fmt == "reel" and not any(re.search(r"-T\d\d-R[12]$", i) for i in pool):
-            R.fail(g, f"Reel braucht die Video-ID aus dem Pool (z. B. 2026-KW47-T01-R1), gefunden: {pool}")
+        if fmt == "reel" and not any(re.search(VIDEO_ID, i) for i in pool):
+            R.fail(g, f"Reel braucht die Video-ID aus dem Pool (z. B. 2026-12-V03 oder eigen-v001), gefunden: {pool}")
     else:
         # Variablen
         g = R.group("Agent-6-Variablen vorab auf Deutsch, vollständig und neu gegenüber der Historie")
@@ -596,11 +830,23 @@ def main():
     ap.add_argument("--slug")
     ap.add_argument("--names", default=str(ROOT / "data" / "forbidden-names.txt"))
     ap.add_argument("--week", action="store_true", help="Wochen-Datei (output/woche-<KW>.md) prüfen")
+    ap.add_argument("--month", action="store_true", help="Monats-Videos (output/videos-<YYYY-MM>.md) prüfen")
     args = ap.parse_args()
 
     path = Path(args.file)
     if not path.exists():
         sys.exit(f"Datei nicht gefunden: {path}")
+    if args.month:
+        R, mon, items = run_month_checks(path.read_text(encoding="utf-8"), args)
+        for g in R.groups:
+            for level, msg in g["items"]:
+                print(f"{level} [{g['label']}] {msg}")
+        print(f"\n{mon}: {len(items)} Video-Prompts · Ergebnis: {R.n_fail} FAIL, {R.n_warn} WARN → "
+              f"{'NICHT bestanden' if R.n_fail else 'bestanden'}")
+        if args.log and not R.n_fail:
+            log_week(Path(args.history), items)
+            print(f"Historie aktualisiert: {args.history}")
+        sys.exit(1 if R.n_fail else 0)
     if args.week:
         R, kw, items = run_week_checks(path.read_text(encoding="utf-8"), args)
         for g in R.groups:

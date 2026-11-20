@@ -8,18 +8,24 @@
   plan.py themen [--neu]          Wunschthemen aus data/themen-wuensche.md auf freie Slots verteilen
                                   (--neu: alle Themen zurücksetzen und neu verteilen)
   plan.py show                    Tabelle ausgeben
+  plan.py kalender [--anker 2026-11-09] [--von 2026-11-11] [--bis 2026-11-30] [--md DATEI]
+                                  Plan auf echte Daten legen (Anker = Montag von Plan-Tag 1, wird gemerkt)
 
 Regeln (Wochenrhythmus, gilt für Woche 1 = Tag 1-7 und Woche 2 = Tag 8-14):
 - Start Montag, Tag 7 und 14 = Sonntag (Sunday Mode).
 - Karussell-Tage = Tag 3 und 6 jeder Woche (Tag 3, 6, 10, 13): 1 Morgen-Reel (06:45) + 1 Karussell (12:30).
 - Alle anderen Tage: Morgen-Reel (06:45) + Abend-Reel (20:00). → 12 Reels + 2 Karussells pro Woche.
-- Jeden Tag 1 Story-Sequenz (17:30), Slot Txx-S.
+- Jeden Tag 2 Story-Sequenzen (Pamina, 2026-11-19): Txx-SN = Nurture (08:30), Txx-SP = Verkauf/Pitch (20:30,
+  am Sonntag im ruhigen Sunday Mode). Dienstag und Samstag zusätzlich Txx-SE = Community-Erfolg (18:30, echter Erfolg
+  aus medien/erfolge/, jeder nur einmal; scripts/erfolg.py). Alte Slots Txx-S (eine Story pro Tag) bleiben lesbar.
 - Pro Tag je 1 Pitch und 1 Nurture im Feed, Reihenfolge wechselnd (ungerade Tage: erster Post Pitch).
-  Stories: gerade Tage Pitch, ungerade Nurture, Sonntag immer Nurture.
-- Fokus rotiert A-D. Reels: jedes 4. Reel ist ein Spiegel (75/25). Karussells abwechselnd Leuchtturm/Spiegel.
+- Fokus rotiert A-D. Reels und Storys abwechselnd Leuchtturm/Spiegel (50/50, seit 20.11.2026; beide beginnen mit einer Szene). Karussells abwechselnd Leuchtturm/Spiegel.
+- Reel-Typ: Morgen-Reel (R1) = A „Ein Satz" (nur Hook, max. ca. 10 Wörter),
+  Abend-Reel (R2) = B „Schichten" (Überschrift + Textbox 20-35 Wörter + Schlusszeile; Caption kurz, ohne Wiederholung).
 - Slide-Design wechselt nur von Tag zu Tag: ungerade Tage „glas“ (sehr transparente Karte),
   gerade Tage „ohne“ (Text direkt auf dem Foto).
 """
+import datetime
 import json
 import re
 import sys
@@ -41,10 +47,17 @@ SEP = "|---|---|---|---|---|---|---|"
 COLS = ["slot", "tag", "fmt", "fokus", "stil", "thema", "hook"]
 NO_THEME = "–"
 OPEN = "(offen)"
+KALENDER = ROOT / "data" / "kalender.json"
+WD = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"]
 
 
 CAROUSEL_DAYS = {3, 6, 10, 13}
-STORY_TIME = "17:30"
+STORY_TIME = "17:30"          # alte Einzel-Story (Txx-S), nur noch für bestehende Posts
+STORY_NURTURE_TIME = "08:30"
+STORY_PITCH_TIME = "20:30"
+STORY_ERFOLG_TIME = "18:30"
+ERFOLG_WEEKDAYS = {1, 5}      # Dienstag, Samstag (0 = Montag)
+STORY_RE = re.compile(r"-S[NPE]?$")
 
 
 def slide_design(day):
@@ -58,9 +71,10 @@ def build_rows():
 
     def row(slot, day, time, fmt, pitch, code, stil):
         short = WEEKDAYS[(day - 1) % 7][:2]
-        focus = "Sunday Mode" if code == "S" else f"{code}) {FOCUS[code]}"
+        focus = "Sunday Mode" if code == "S" else "–" if code == "-" else f"{code}) {FOCUS[code]}"
+        ausr = pitch if isinstance(pitch, str) else ("Pitch" if pitch else "Nurture")
         rows.append({"slot": slot, "tag": f"Tag {day} · {short} · {time}",
-                     "fmt": f"{fmt} · {'Pitch' if pitch else 'Nurture'}",
+                     "fmt": f"{fmt} · {ausr}",
                      "fokus": focus, "stil": stil, "thema": NO_THEME, "hook": OPEN})
 
     for day in range(1, 15):
@@ -68,7 +82,7 @@ def build_rows():
         first_pitch = day % 2 == 1
         # Reel 1 (Morgen)
         row(f"T{day:02d}-R1", day, "06:45", "Reel 1", first_pitch,
-            "S" if sunday else "ABCD"[reel_n % 4], "Spiegel" if reel_n % 4 == 3 else "Leuchtturm")
+            "S" if sunday else "ABCD"[reel_n % 4], "Spiegel" if reel_n % 2 == 1 else "Leuchtturm")
         reel_n += 1
         if day in CAROUSEL_DAYS:
             row(f"T{day:02d}-K", day, "12:30", "Karussell", not first_pitch,
@@ -76,10 +90,14 @@ def build_rows():
             carousel_n += 1
         else:
             row(f"T{day:02d}-R2", day, "20:00", "Reel 2", not first_pitch,
-                "S" if sunday else "ABCD"[reel_n % 4], "Spiegel" if reel_n % 4 == 3 else "Leuchtturm")
+                "S" if sunday else "ABCD"[reel_n % 4], "Spiegel" if reel_n % 2 == 1 else "Leuchtturm")
             reel_n += 1
-        row(f"T{day:02d}-S", day, STORY_TIME, "Story-Sequenz", day % 2 == 0 and not sunday,
-            "S" if sunday else "ABCD"[(day + 2) % 4], "Spiegel" if day % 4 == 0 else "Leuchtturm")
+        row(f"T{day:02d}-SN", day, STORY_NURTURE_TIME, "Story-Sequenz", False,
+            "S" if sunday else "ABCD"[(day + 2) % 4], "Spiegel" if day % 2 == 0 else "Leuchtturm")
+        row(f"T{day:02d}-SP", day, STORY_PITCH_TIME, "Story-Sequenz", True,
+            "S" if sunday else "ABCD"[(day + 3) % 4], "Spiegel" if day % 2 == 1 else "Leuchtturm")
+        if (day - 1) % 7 in ERFOLG_WEEKDAYS:
+            row(f"T{day:02d}-SE", day, STORY_ERFOLG_TIME, "Story-Erfolg", "Erfolg", "-", "Community")
     rows.sort(key=lambda r: (r["slot"][:3], r["tag"].rsplit("· ", 1)[1]))
     return rows
 
@@ -104,10 +122,11 @@ def write_plan(rows):
         "# 14-Tage-Content-Plan @zeit.reichtum",
         "",
         "Start Montag · Tag 7 und 14 = Sonntag (Sunday Mode) · Erzeugt mit `python3 scripts/plan.py generate`.",
-        "Pro Woche: 12 Reels + 2 Karussells (Tag 3 und 6) + täglich 1 Story-Sequenz.",
+        "Pro Woche: 12 Reels + 2 Karussells (Tag 3 und 6) + täglich 2 Story-Sequenzen (SN Nurture 08:30, SP Verkauf 20:30) + Di/Sa Community-Erfolg (SE 18:30).",
+        "Reel-Typ: Morgen-Reel (R1) = A „Ein Satz“, Abend-Reel (R2) = B „Schichten“ (Überschrift + Textbox + Schlusszeile).",
         "Slide-Design: ungerade Tage „glas“ (sehr transparente Karte), gerade Tage „ohne“ (Text direkt aufs Foto).",
         "Themen aus `data/themen-wuensche.md` verteilt `python3 scripts/plan.py themen`.",
-        "Einzelne Posts anfordern, z. B. „Reel 1 von Tag 5“ (Slot `T05-R1`), „Story von Tag 2“ (`T02-S`).",
+        "Einzelne Posts anfordern, z. B. „Reel 1 von Tag 5“ (Slot `T05-R1`), „Nurture-Story von Tag 2“ (`T02-SN`), „Verkaufs-Story von Tag 2“ (`T02-SP`), „Erfolgs-Story von Tag 2“ (`T02-SE`).",
         "",
         HEAD,
         SEP,
@@ -119,24 +138,40 @@ def write_plan(rows):
 
 def norm_slot(s):
     s = s.strip().lower().replace("_", "-")
-    m = re.match(r"^t?0*(\d{1,2})[-\s]*(?:r(?:eel)?\s*([12])|(k)(?:arussell)?|(s)(?:tory)?)$", s)
+    m = re.match(r"^t?0*(\d{1,2})[-\s]*(?:r(?:eel)?\s*([12])|(k)(?:arussell)?|s(?:tory)?\s*-?\s*([npe])?)$", s)
     if not m:
-        sys.exit(f"Unbekannter Slot: {s!r} (erwartet z. B. T05-R1, T03-K, T02-S)")
+        sys.exit(f"Unbekannter Slot: {s!r} (erwartet z. B. T05-R1, T03-K, T02-SN, T02-SP, T02-SE)")
     day = int(m.group(1))
     if m.group(2):
         return f"T{day:02d}-R{m.group(2)}"
-    return f"T{day:02d}-K" if m.group(3) else f"T{day:02d}-S"
+    if m.group(3):
+        return f"T{day:02d}-K"
+    return f"T{day:02d}-S" + (m.group(4) or "").upper()
 
 
 def cmd_generate(force):
     old = {} if force else {r["slot"]: r for r in parse_plan()}
     rows = build_rows()
     for r in rows:
-        if r["slot"] in old:
-            r["hook"] = old[r["slot"]]["hook"]
-            r["thema"] = old[r["slot"]]["thema"]
+        src = old.get(r["slot"])
+        if not src and r["slot"].endswith(("-SN", "-SP")):  # alte Einzel-Story Txx-S → passende neue Story
+            o = old.get(r["slot"][:-1])
+            if o and o["fmt"].endswith("Pitch") == r["slot"].endswith("-SP"):
+                src = o
+        if src:
+            r["hook"] = src["hook"]
+            r["thema"] = src["thema"]
     write_plan(rows)
     print(f"Plan geschrieben: {PLAN.relative_to(ROOT)} ({len(rows)} Slots)")
+
+
+def reel_typ(slot):
+    """Reel-Typ: Morgen-Reel (R1) = A „Ein Satz", Abend-Reel (R2) = B „Schichten". Sonst None."""
+    if slot.endswith("-R1"):
+        return "A"
+    if slot.endswith("-R2"):
+        return "B"
+    return None
 
 
 def cmd_slot(arg):
@@ -154,10 +189,13 @@ def cmd_slot(arg):
         "tag": day,
         "wochentag": WEEKDAYS[(day - 1) % 7],
         "uhrzeit": m.group(2) if m else None,
-        "format": "Karussell" if fmt.startswith("Karussell") else "Story-Sequenz" if fmt.startswith("Story") else "Reel",
+        "format": ("Karussell" if fmt.startswith("Karussell") else "Story-Erfolg" if fmt.startswith("Story-Erfolg")
+                   else "Story-Sequenz" if fmt.startswith("Story") else "Reel"),
+        "highlight": highlight_for(slot, None if r["thema"] == NO_THEME else r["thema"]),
         "woche": 1 if day <= 7 else 2,
         "slide_design": slide_design(day),
         "reel_nummer": int(fmt.split()[1]) if fmt.startswith("Reel") else None,
+        "reel_typ": reel_typ(slot),
         "ausrichtung": ausr,
         "fokus": r["fokus"],
         "stil": r["stil"],
@@ -211,8 +249,32 @@ def wish_hints(thema):
     return None
 
 
+def is_story(slot):
+    return bool(STORY_RE.search(slot))
+
+
 def slot_kind(slot):
-    return "karussell" if slot.endswith("-K") else "story" if slot.endswith("-S") else "reel"
+    return "karussell" if slot.endswith("-K") else "story" if is_story(slot) else "reel"
+
+
+# Highlights (Pamina, 2026-11-19): jede Story bekommt ein Ziel-Highlight; Pamina fügt sie in der App hinzu
+HIGHLIGHTS = ["START", "Erfolg", "Über mich", "Ehrlich", "Fragen"]
+
+
+def highlight_for(slot, thema=None):
+    if slot.endswith("-SE"):
+        return "Erfolg"
+    if slot.endswith("-SP"):
+        return "START"
+    if slot.endswith(("-SN", "-S")) and thema:
+        for h in HIGHLIGHTS:  # Thema „Highlight Über mich: …“ aus den Wunschthemen
+            if thema.lower().startswith(f"highlight {h.lower()}"):
+                return h
+        if thema.lower().startswith("q&a"):
+            return "Fragen"
+        if thema.lower().startswith("community-einblick"):
+            return "Erfolg"
+    return "–" if is_story(slot) else None
 
 
 def cmd_themen(reset):
@@ -229,7 +291,8 @@ def cmd_themen(reset):
     for w in wishes:
         fmt = w["format"].split("-")[0]
         cands = [r for r in rows if r["thema"] == NO_THEME and (fmt.startswith("bel") or slot_kind(r["slot"]) == fmt)
-                 and not r["fokus"].startswith("Sunday")]
+                 and not r["fokus"].startswith("Sunday")
+                 and not r["slot"].endswith(("-SE", "-SP"))]  # Story-Themen in die Nurture-Story; SP verkauft, SE zeigt Erfolge
         if w["tage"]:
             cands = [r for r in cands if WEEKDAYS[(int(r["slot"][1:3]) - 1) % 7][:2] in w["tage"]]
             pick = cands[:w["anzahl"]]
@@ -255,6 +318,89 @@ def cmd_set_thema(arg, text):
     print(f"{slot}: Thema gesetzt")
 
 
+def load_kalender():
+    return json.loads(KALENDER.read_text(encoding="utf-8")) if KALENDER.exists() else {}
+
+
+def plan_tag(datum, anker):
+    """Datum → Plan-Tag 1-14 (Anker = Montag von Tag 1; danach läuft der 14-Tage-Zyklus weiter)."""
+    return (datum - anker).days % 14 + 1
+
+
+def cmd_kalender(args):
+    import argparse
+    ap = argparse.ArgumentParser(prog="plan.py kalender")
+    ap.add_argument("--anker")
+    ap.add_argument("--von")
+    ap.add_argument("--bis")
+    ap.add_argument("--md")
+    a = ap.parse_args(args)
+    kal = load_kalender()
+    if a.anker:
+        anker = datetime.date.fromisoformat(a.anker)
+        if anker.weekday() != 0:
+            sys.exit("Der Anker muss ein Montag sein (Plan-Tag 1 = Montag).")
+        kal["anker"] = anker.isoformat()
+    if not kal.get("anker"):
+        sys.exit("Noch kein Anker: plan.py kalender --anker <Montag von Plan-Tag 1>")
+    if a.von:
+        kal["von"] = a.von
+    if a.bis:
+        kal["bis"] = a.bis
+    KALENDER.write_text(json.dumps(kal, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    anker = datetime.date.fromisoformat(kal["anker"])
+    von = datetime.date.fromisoformat(kal.get("von") or kal["anker"])
+    bis = datetime.date.fromisoformat(kal.get("bis") or (von + datetime.timedelta(days=13)).isoformat())
+    rows = parse_plan()
+    if not rows:
+        sys.exit("Kein Plan: python3 scripts/plan.py generate")
+    by_day = {}
+    for r in rows:
+        by_day.setdefault(int(r["slot"][1:3]), []).append(r)
+    lines = [f"# Kalender @zeit.reichtum · {von.strftime('%d.%m.')}–{bis.strftime('%d.%m.%Y')}", "",
+             f"Plan-Tag 1 = Montag {anker.strftime('%d.%m.%Y')}; der 14-Tage-Plan läuft danach im Kreis weiter.",
+             "Fotos: Wochen-Pool der Kalenderwoche (Skill woche-vorbereiten). Videos: Monats-Pool (Skill videos-monat).",
+             "Reel-Typ: A = „Ein Satz“ (morgens), B = „Schichten“ (abends).", "",
+             "| Datum | Zeit | Slot | Format & Typ | Reel-Typ | Fokus | Stil | Thema | Medien | Hook-Idee |",
+             "|---|---|---|---|---|---|---|---|---|---|"]
+    weeks = {}
+    d = von
+    while d <= bis:
+        tag = plan_tag(d, anker)
+        y, kw, _ = d.isocalendar()
+        weeks.setdefault(f"{y}-KW{kw:02d}", set()).add(1 if tag <= 7 else 2)
+        for r0 in sorted(by_day.get(tag, []), key=lambda r: r["tag"].split("·")[-1]):
+            zeit = r0["tag"].split("·")[-1].strip()
+            r = r0
+            # Tausch: kalender.json {"tausch": {"2026-11-19 T04-R2": "T02-R2"}} – an diesem Datum und dieser Uhrzeit läuft der andere Slot
+            neu = (kal.get("tausch") or {}).get(f"{d.isoformat()} {r0['slot']}")
+            if neu:
+                r = next((x for x in rows if x["slot"] == neu), r0)
+            typ = reel_typ(r["slot"]) or "–"
+            fokus = r["fokus"].split(")")[0] if ")" in r["fokus"] else "–" if r["fokus"] == "–" else "Sonntag"
+            if r["slot"].endswith(("-R1", "-R2")):
+                med = f"Video {d.year}-{d.month:02d} + Titelbild KW{kw:02d}"
+            elif r["slot"].endswith("-K"):
+                med = f"2 Fotos KW{kw:02d}"
+            elif r["slot"].endswith("-SE"):
+                med = "Erfolg aus medien/erfolge/"
+            else:
+                med = f"Foto KW{kw:02d}"
+            lines.append(f"| {WD[d.weekday()]} {d.strftime('%d.%m.')} | {zeit} | {r['slot']} | {r['fmt']} | {typ} | "
+                         f"{fokus} | {r['stil']} | {r['thema']} | {med} | {r['hook']} |")
+        d += datetime.timedelta(days=1)
+    lines += ["", "## Medien-Wochen", ""]
+    for k, pws in weeks.items():
+        lines.append(f"- {k}: Plan-Woche {', '.join(map(str, sorted(pws)))} → "
+                     + " / ".join(f"`python3 scripts/media.py init {k} --plan-woche {pw}`" for pw in sorted(pws)))
+    text = "\n".join(lines) + "\n"
+    if a.md:
+        Path(a.md).write_text(text, encoding="utf-8")
+        print(f"Geschrieben: {a.md}")
+    else:
+        print(text)
+
+
 def main(argv):
     if len(argv) < 2:
         sys.exit(__doc__)
@@ -269,6 +415,8 @@ def main(argv):
         cmd_set_thema(argv[2], argv[3])
     elif cmd == "themen":
         cmd_themen("--neu" in argv)
+    elif cmd == "kalender":
+        cmd_kalender(argv[2:])
     elif cmd == "show":
         print(PLAN.read_text(encoding="utf-8") if PLAN.exists() else "Noch kein Plan.")
     else:

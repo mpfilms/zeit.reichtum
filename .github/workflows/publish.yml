@@ -1,0 +1,33 @@
+name: publish
+# Veröffentlicht fällige Posts aus der Supabase-Warteschlange (publish_queue) auf Instagram und Facebook.
+# Läuft alle 10 Minuten (GitHub startet geplante Läufe teils einige Minuten später) und per Knopf „Run workflow“.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Fällige Posts veröffentlichen
+        run: python3 scripts/warteschlange.py run
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          SUPABASE_BUCKET: ${{ secrets.SUPABASE_BUCKET }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          FB_PAGE_ID: ${{ secrets.FB_PAGE_ID }}
+          META_SYSTEM_TOKEN: ${{ secrets.META_SYSTEM_TOKEN }}

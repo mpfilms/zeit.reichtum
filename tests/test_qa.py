@@ -57,7 +57,8 @@ class QA(unittest.TestCase):
 
     # --- Kopfzeile / Hashtags ---
     def test_header(self):
-        self.assertFails(PITCH.replace("Werbung 🤍 |", "Werbung |"), "Pflicht-Kopfzeile")
+        self.assertFails(PITCH.replace("Werbung 🤍\n", "Werbung\n"), "Kennzeichnung")
+        self.assertFails(PITCH.replace("\nFolge mir, wenn du dir als Mama etwas Eigenes aufbauen möchtest.\n", "\n"), "Folge-Satz")
 
     def test_hashtag_block(self):
         self.assertFails(PITCH.replace("System. 🕊️\n", "System. 🕊️\n\n#mama #geld #zeit\n"), "Hashtag-Block")
@@ -140,7 +141,7 @@ class QA(unittest.TestCase):
         self.assertEqual(len(self.hist.read_text(encoding="utf-8").splitlines()), 2)
 
     def test_no_log_on_failure(self):
-        code, _ = self.run_qa(PITCH.replace("Werbung 🤍 |", "Werbung |"), "--log")
+        code, _ = self.run_qa(PITCH.replace("Werbung 🤍\n", "Werbung\n"), "--log")
         self.assertEqual(code, 1)
         self.assertFalse(self.hist.exists())
 
@@ -162,6 +163,19 @@ class QA(unittest.TestCase):
         self.assertFails(swapped, "Reihenfolge")
 
     # --- WARN, kein FAIL ---
+    def test_no_stoic_jargon(self):
+        self.assertFails(PITCH.replace("Deine Pamina 🤍", "Deine Pamina 🤍 Ganz stoisch.", 1), "stoisch")
+
+    # --- Sprach-Lint ---
+    def test_language_possessive_without_noun(self):
+        self.assertFails(PITCH.replace("Deine Pamina 🤍", "Und wohin ist deine heute gegangen? Deine Pamina 🤍", 1), "Besitzwort ohne Nomen")
+
+    def test_language_double_word(self):
+        self.assertFails(PITCH.replace("Deine Pamina 🤍", "Das ist ist schön. Deine Pamina 🤍", 1), "Doppeltes Wort")
+
+    def test_language_missing_space(self):
+        self.assertFails(PITCH.replace("Deine Pamina 🤍", "Es war schön.Danach kam es. Deine Pamina 🤍", 1), "Leerzeichen nach Satzzeichen")
+
     def test_swiss_spelling(self):
         self.assertFails(PITCH.replace("Deine Pamina 🤍", "Deine Pamina 🤍 Grüße", 1), "ß")
 
@@ -184,14 +198,31 @@ class Scripts(unittest.TestCase):
         reels = [r for r in rows if "-R" in r.split("|")[1]]
         self.assertEqual(len(reels), 24)  # 12 Reels pro Woche
         self.assertEqual(len([r for r in rows if "-K " in r.split("|")[1] + " "]), 4)  # Tag 3, 6, 10, 13
-        self.assertEqual(len([r for r in rows if "-S " in r.split("|")[1] + " "]), 14)  # täglich Story
-        feed = [r for r in rows if "-S " not in r.split("|")[1] + " "]
+        slot = lambda r: r.split("|")[1].strip()
+        self.assertEqual(len([r for r in rows if slot(r).endswith("-SN") and "Nurture" in r]), 14)  # täglich Nurture-Story
+        self.assertEqual(len([r for r in rows if slot(r).endswith("-SP") and "Pitch" in r]), 14)  # täglich Verkaufs-Story
+        se = [slot(r) for r in rows if slot(r).endswith("-SE")]
+        self.assertEqual(se, ["T02-SE", "T06-SE", "T09-SE", "T13-SE"])  # Community-Erfolg Di + Sa
+        self.assertTrue(all("08:30" in r for r in rows if slot(r).endswith("-SN")))
+        self.assertTrue(all("20:30" in r for r in rows if slot(r).endswith("-SP")))
+        feed = [r for r in rows if "-S" not in slot(r)]
         for d in range(1, 15):  # pro Tag genau 1 Pitch und 1 Nurture im Feed
             day = [r for r in feed if f"| T{d:02d}-" in r]
             self.assertEqual(sorted(r.split("|")[3].split("· ")[1].strip() for r in day), ["Nurture", "Pitch"])
         for d in (7, 14):
-            self.assertTrue(all("Sunday Mode" in r for r in rows if f"| T{d:02d}-" in r))
-        self.assertEqual(sum("Spiegel" in r.split("|")[5] for r in reels), 6)  # 75/25
+            self.assertTrue(all("Sunday Mode" in r for r in rows if f"| T{d:02d}-" in r and "-SE" not in r))
+        self.assertEqual(sum("Spiegel" in r.split("|")[5] for r in reels), 12)  # 50/50 seit 20.11.2026
+
+    def test_story_slots(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import plan
+        self.assertEqual(plan.norm_slot("t5 sn"), "T05-SN")
+        self.assertEqual(plan.norm_slot("T02-SE"), "T02-SE")
+        self.assertEqual(plan.norm_slot("T03-S"), "T03-S")
+        self.assertEqual(plan.slot_kind("T05-SP"), "story")
+        self.assertEqual(plan.highlight_for("T05-SP"), "START")
+        self.assertEqual(plan.highlight_for("T06-SE"), "Erfolg")
+        self.assertEqual(plan.highlight_for("T11-SN", "Highlight Über mich: wer …"), "Über mich")
 
     def test_roll(self):
         for cmd, ok in (("pitch-nurture", {"Pitch", "Nurture"}), ("caption-variant", {"a", "b"})):

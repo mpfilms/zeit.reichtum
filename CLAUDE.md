@@ -8,7 +8,9 @@ Dieses Repo automatisiert den 11-Agenten-Workflow für den Instagram-Account **@
 - **Startsignal** (nur wenn Pamina das Regelwerk lädt oder `/start` nutzt): erzeuge noch keinen Content, antworte nur mit dem Satz aus dem Skill `start`.
 - **Einen Post erstellen** („Reel 1 von Tag 5", „Karussell von Tag 3", „Story-Sequenz", „Reel Pitch/Nurture"): nutze den Skill `create-post`. Es wird **nur dieser eine Post** erstellt.
 - **Plan** („14-Tage-Plan"): Skill `content-plan`. Paminas Wunschthemen stehen in `data/themen-wuensche.md` und landen über `plan.py themen` in der Spalte „Thema“. Pro Woche 12 Reels + 2 Karussells (Tag 3 und 6) + täglich 1 Story-Sequenz.
-- **Woche vorbereiten** (Wochenbeginn): Skill `woche-vorbereiten` – 9 Gemini-Fotos (1 pro Tag, an Karussell-Tagen 2, klar verschiedene Szenen) und 12 Video-Prompts; Pamina erzeugt die Videos selbst und legt sie als `medien/<KW>/videos/<SLOT>.mp4` ab. Posts der Woche nutzen diesen Pool (Pool-Modus), statt neue Bilder zu erzeugen. **Zitat-Ideen**: Skill `quote-pack` (4er-Pack). **Hooks** (Vorrat, Plan-Slots füllen, A/B-Varianten): Skill `hook-generator`, Vorrat in `data/hook-bank.md`.
+- **Stories:** täglich `Txx-SN` (Nurture 08:30) und `Txx-SP` (Verkauf 20:30), Di + Sa zusätzlich `Txx-SE` (Community-Erfolg 18:30, `scripts/erfolg.py`, nie ein Erfolg doppelt). Highlights: `data/highlights.md`. Ständige Regeln von Pamina: `data/lernregeln.md`.
+- **Woche vorbereiten** (Wochenbeginn): Skill `woche-vorbereiten` – 9 Gemini-Fotos (1 pro Tag, an Karussell-Tagen 2, klar verschiedene Szenen) für Stories, Karussells und Reel-Titelbilder. Posts der Woche nutzen diesen Pool (Pool-Modus), statt neue Bilder zu erzeugen.
+- **Videos des Monats** (Monatsbeginn): Skill `videos-monat` – 18 Video-Prompts (`output/videos-<YYYY-MM>.md`); Pamina erzeugt die Videos in ihrer App und legt sie als `medien/videos/<Monat>/<ID>.mp4` ab, eigene Handy-Videos in `medien/eigene-videos/`. Jedes Video höchstens 3× (original, gespiegelt, gespiegelt + Ausschnitt), 10 Tage Pause. Das fertige Reel (Text, Loop, Titelbild) baut `scripts/render_reel.py`; Trend-Musik fügt Pamina in Instagram hinzu. **Zitat-Ideen**: Skill `quote-pack` (4er-Pack). **Hooks** (Vorrat, Plan-Slots füllen, A/B-Varianten): Skill `hook-generator`, Vorrat in `data/hook-bank.md`.
 - Der Workflow läuft **sequenziell** über 11 getrennte Subagenten in `.claude/agents/` (`zr-01-…` bis `zr-11-…`). Jeder Agent hat genau eine Aufgabe und gibt nur seinen eigenen Block zurück. Du (Hauptsession) orchestrierst, übergibst Ergebnisse und setzt den Post zusammen. Du schreibst keine Agenten-Inhalte selbst.
 - Qualitätssicherung ist doppelt: Agent 10 (inhaltlich) **und** `scripts/qa_check.py` (deterministisch). Ein Post wird erst ausgegeben, wenn `qa_check.py --final` ohne `FAIL` durchläuft.
 - Zufall (Pitch/Nurture, Caption-Variante) kommt aus `scripts/roll.py`, nicht aus dem Bauchgefühl.
@@ -25,9 +27,12 @@ Dieses Repo automatisiert den 11-Agenten-Workflow für den Instagram-Account **@
 ## Befehle
 - `python3 scripts/qa_check.py output/<slot>.md [--final] [--log]` – deterministische Qualitätsprüfung
 - `python3 scripts/plan.py generate | slot T05-R1 | set-hook T05-R1 "Idee" | set-thema T04-S "Thema" | themen [--neu]` – Content-Plan (Slots `Txx-R1/R2`, `Txx-K`, `Txx-S`)
-- `python3 scripts/hooks.py check "Hook" | add --stil spiegel --fokus B --trigger Paradoxon "Hook" | list [--frei] | open | use H001 T05-R1` – Hook-Bank
+- `python3 scripts/hooks.py check "Hook" | add --stil spiegel --fokus B --trigger Paradoxon "Hook" | list [--frei] | open | use H001 T05-R1 | messen H001 --hold 62 --speichern 14 --teilen 5 --start 3 | auswertung` – Hook-Bank inkl. Insights. Reel-Typ: Morgen-Reel A „Ein Satz“, Abend-Reel B „Schichten“ (`reel_typ` in `plan.py slot`)
 - `python3 scripts/media.py init <KW> --plan-woche 1 | plan | status | scan | add-eigen [--fuer ID] | wunsch | pick <SLOT> | use` – Wochen-Medien-Pool (inkl. Foto-Wünsche an Pamina)
 - `python3 scripts/qa_check.py output/woche-<KW>.md --week [--log]` – Wochen-Prompts prüfen
+- `python3 scripts/media.py monat-init [2026-12] | monat-status | add-video DATEI --ort … | video-pick SLOT | video-use SLOT ID VARIANTE` – Monats-Video-Pool
+- `python3 scripts/qa_check.py output/videos-<YYYY-MM>.md --month [--log]` – Monats-Video-Prompts prüfen
+- `python3 scripts/render_reel.py output/<SLOT>.md [--video PFAD] [--variante original|spiegel|ausschnitt] [--dry-run]` – fertiges Reel (`reel.mp4`) und Titelbild (`cover.jpg`), braucht ffmpeg und Pillow
 - `python3 scripts/roll.py pitch-nurture | caption-variant` – Zufall 50/50
 - `python3 scripts/render_images.py output/woche-<KW>.md --week [--only ID] [--redo] [--dry-run]` – Fotos der Woche erzeugen (Schlüssel `GEMINI_API_KEY` in `.env`)
 - `python3 scripts/render_images.py output/<slot>.md --pool [--design glas|ohne]` – Slides aus Pool-Fotos (keine API-Kosten)

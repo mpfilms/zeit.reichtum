@@ -90,8 +90,8 @@ for label, f in (("Bild", qa_check.IMG_FORMULA), ("Video", qa_check.VID_FORMULA)
 if qa_check.PARAMS not in dna or qa_check.PARAMS not in a6:
     err("Midjourney-Parameter weichen ab")
 a7 = (ROOT / ".claude" / "agents" / "zr-07-copywriter.md").read_text(encoding="utf-8")
-if qa_check.HEADER not in a7:
-    err("Pflicht-Kopfzeile fehlt in zr-07-copywriter.md")
+if f"`{qa_check.HEADER}`" not in a7 or qa_check.FOOTER not in a7:
+    err("Kennzeichnung oder Folge-Satz fehlt in zr-07-copywriter.md")
 
 # Blacklist
 bl = {l.lower() for l in qa_check.lines_of(ROOT / "data" / "blacklist.txt")}

@@ -370,7 +370,7 @@ STYLE_FONT = {"n": "text", "b": "bold", "m": "bold", "a": "accent"}
 
 def layout_block(draw, fonts, art, text, scale, W, max_w):
     """→ (zeilen, zeilenhöhe, abstand_danach); zeile = [(wort, stil, font, breite)]."""
-    base = {"h": 0.074, "k": 0.052, "p": 0.046, "src": 0.029}[art] * W * scale
+    base = {"h": 0.074, "k": 0.052, "p": 0.046, "pb": 0.046, "src": 0.029}[art] * W * scale
     if art == "h":
         words = [(w, "h") for w in strip_marks(text).split()]
         fmap = {"h": fonts.get("head", base)}
@@ -402,7 +402,7 @@ def layout_block(draw, fonts, art, text, scale, W, max_w):
     if cur:
         lines.append(cur)
     lh = base * (1.18 if art == "h" else 1.42)
-    gap = base * (0.55 if art in ("h", "k") else 0.75)
+    gap = base * (0.55 if art in ("h", "k") else 0.6 if art == "pb" else 0.75)
     return lines, lh, gap, space
 
 
@@ -425,6 +425,7 @@ def fit_scale(draw, fonts, slide, W, H, start):
         scale *= 0.95
 
 
+GLAS_BLUR = 3.5   # Weichzeichnung im Glas-Fenster, bewusst minimal (frühere Version: 18)
 DESIGNS = ("glas", "ohne", "karte")
 # Helle Schrift für „glas“ und „ohne“ (Creme wie in CapCut, #F5EFE6), dunkle für die alte deckende „karte“.
 LIGHT = {"h": (245, 239, 230), "k": (226, 205, 178), "s": (214, 202, 188), "n": (240, 233, 222),
@@ -458,7 +459,7 @@ def draw_text(draw, laid, colors, y, W, marker=True, only_color=None):
 
 
 def render_slide(img, slide, total, fonts, Image, ImageDraw, ImageFilter, scale, design="glas"):
-    """design: „glas“ = sehr transparente Milchglas-Karte, „ohne“ = Text direkt auf dem Foto,
+    """design: „glas“ = Foto nur minimal weich (GLAS_BLUR) und leicht abgedunkelt, „ohne“ = Text direkt auf dem Foto,
     „karte“ = alte deckende Creme-Karte. Innerhalb eines Posts immer derselbe Look."""
     W, H = img.size
     img = img.convert("RGBA")
@@ -474,14 +475,17 @@ def render_slide(img, slide, total, fonts, Image, ImageDraw, ImageFilter, scale,
         ImageDraw.Draw(card).rounded_rectangle((cx0, cy0, cx1, cy1), 18, fill=PALETTE["card"] + (246,))
         img = Image.alpha_composite(img, card)
     elif design == "glas":
-        # Milchglas: Foto hinter der Karte weichzeichnen, nur leicht abdunkeln, feiner Creme-Rand
+        # Glas-Fenster: Foto dahinter bleibt erkennbar (nur minimale Weichzeichnung). Nur leicht abdunkeln, so viel wie die Lesbarkeit
+        # der hellen Schrift braucht: helles Foto → mehr, dunkles Foto → kaum. Feiner Creme-Rand.
+        from PIL import ImageStat
+        lum = ImageStat.Stat(img.crop((cx0, cy0, cx1, cy1)).convert("L")).mean[0]
+        alpha = round(min(125, max(30, 30 + (lum - 60) / 140 * 95)))
         mask = Image.new("L", img.size, 0)
         ImageDraw.Draw(mask).rounded_rectangle((cx0, cy0, cx1, cy1), 22, fill=255)
-        blurred = img.filter(ImageFilter.GaussianBlur(18))
-        img = Image.composite(blurred, img, mask)
+        img = Image.composite(img.filter(ImageFilter.GaussianBlur(GLAS_BLUR)), img, mask)  # nur minimal weich
         tint = Image.new("RGBA", img.size, (0, 0, 0, 0))
         d = ImageDraw.Draw(tint)
-        d.rounded_rectangle((cx0, cy0, cx1, cy1), 22, fill=(40, 30, 22, 70), outline=(245, 239, 230, 110), width=2)
+        d.rounded_rectangle((cx0, cy0, cx1, cy1), 22, fill=(30, 22, 16, alpha), outline=(245, 239, 230, 110), width=2)
         img = Image.alpha_composite(img, tint)
     else:  # ohne: weicher Verlauf nur hinter dem Text, keine Fläche
         veil = Image.new("RGBA", img.size, (0, 0, 0, 0))
@@ -526,6 +530,36 @@ def cover(img, size, Image, anchor_y=0.5):
     return img.crop((l, t, l + W, t + H))
 
 
+def _balanced(t):
+    return t.count("==") % 2 == 0 and t.count("**") % 2 == 0 and len(re.findall(r"(?<!\w)_(?=\w)", t)) % 2 == 0 \
+        or t.count("==") % 2 == 0 and t.count("**") % 2 == 0
+
+
+def split_bridge(slide, total):
+    """Der letzte Satz einer Slide, der auf die nächste verweist (endet auf ':' oder '?'), beginnt auf einer neuen Zeile.
+    Gilt nicht für die letzte Slide. Der Satz bleibt im selben Textblock-Stil, nur der Zeilenumbruch kommt dazu."""
+    if slide["nr"] >= total or not slide["blocks"] or slide["blocks"][-1][0] != "p":
+        return slide
+    text = slide["blocks"][-1][1]
+    core = text.rstrip().rstrip("=*_").rstrip()
+    if not core.endswith((":", "?")):
+        return slide
+    cut = None
+    for m in re.finditer(r"[.!?:](?:==|\*\*|_)?\s+(?=\S)", text):
+        before = text[:m.start() + 1]
+        if m.end() >= len(text.rstrip()) or re.search(r"(?:(?<!\w)\w|(?<!\w)(?:ca|ggf|bzw|etc|usw|vs|Nr|Std|Min))\.$", before):
+            continue
+        cut = m.end()
+    if cut is None:
+        return slide
+    first, last = text[:cut].rstrip(), text[cut:].strip()
+    if not (_balanced(first) and _balanced(last)) or len(last.split()) < 2:
+        return slide
+    out = dict(slide)
+    out["blocks"] = slide["blocks"][:-1] + [("pb", first), ("p", last)]
+    return out
+
+
 def render_slides(images, slides, out_dir, size=(1080, 1350), design="glas"):
     """images: ein Pfad oder Liste; Slide n nutzt Bild ((n-1) mod Anzahl) – Abwechslung, gleicher Rahmen."""
     try:
@@ -535,6 +569,7 @@ def render_slides(images, slides, out_dir, size=(1080, 1350), design="glas"):
     images = [images] if isinstance(images, (str, Path)) else list(images)
     if design not in DESIGNS:
         raise SystemExit(f"Unbekanntes Slide-Design {design!r} ({', '.join(DESIGNS)})")
+    slides = [split_bridge(sl, len(slides)) for sl in slides]
     bases = [cover(Image.open(p).convert("RGB"), size, Image, 0.7) for p in images]
     fonts = Fonts(ImageFont)
     out_dir.mkdir(parents=True, exist_ok=True)

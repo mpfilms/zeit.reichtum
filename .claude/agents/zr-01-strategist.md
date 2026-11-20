@@ -26,8 +26,10 @@ A) Erschöpfung am Morgen / Funktionieren-Müssen · B) Mental Load / Gedanken a
 - **Typ:** Leuchtturm
 - **Ausrichtung:** Pitch
 - **Sunday Mode:** nein
+- **Reel-Typ:** A | B | –
 - **Thema:** Q&A: Antworten auf eure Fragen | kein
 - **Thema-Hinweise:** … (wörtlich aus dem Plan; Zeile entfällt bei „kein“)
 - **Quelle:** Plan | Vorgabe | Zufall/Rotation
 ```
+`Reel-Typ:` nur bei Reels, aus `reel_typ` in `plan.py slot` (Morgen-Reel A „Ein Satz“, Abend-Reel B „Schichten“); bei Karussell/Story `–`. Gibt Pamina einen Typ vor, gilt ihrer.
 `Format:` ist genau eines von `Reel`, `Karussell`, `Story-Sequenz`. `Typ:` ist `Leuchtturm` oder `Spiegel`. `Ausrichtung:` ist `Pitch` oder `Nurture`. Bei Sunday Mode lautet die Fokus-Zeile `Sunday Mode: Loslassen, Quality Time, durchatmen`.

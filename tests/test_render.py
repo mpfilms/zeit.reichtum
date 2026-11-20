@@ -114,6 +114,21 @@ class Render(unittest.TestCase):
             self.assertIn("QA nicht bestanden", p.stderr)
 
     @unittest.skipUnless(__import__("importlib").util.find_spec("PIL"), "Pillow nicht installiert")
+    def test_bridge_sentence_on_new_line(self):
+        sl = {"nr": 2, "blocks": [("p", "Wäsche, Einkauf. Bezahlt wurde nur eines: Stunde gegen Lohn. Bis ich mich fragte:")]}
+        out = ri.split_bridge(sl, 8)["blocks"]
+        self.assertEqual([a for a, _ in out], ["pb", "p"])
+        self.assertEqual(out[1][1], "Bis ich mich fragte:")
+
+    def test_bridge_not_on_last_slide_and_keeps_abbreviations(self):
+        last = {"nr": 8, "blocks": [("p", "Ein Satz. Was würdest du weiterempfehlen?")]}
+        self.assertEqual(ri.split_bridge(last, 8)["blocks"], last["blocks"])
+        abk = {"nr": 3, "blocks": [("p", "Etwa z. B. Amazon oder LEGO und Lidl, mehr nicht und dann:")]}
+        self.assertEqual(ri.split_bridge(abk, 8)["blocks"], abk["blocks"])
+
+    def test_glass_window_blur_is_minimal(self):
+        self.assertLessEqual(ri.GLAS_BLUR, 5)  # früher 18: das Foto hinter dem Text soll erkennbar bleiben
+
     def test_slides_overlay(self):
         from PIL import Image
         with tempfile.TemporaryDirectory() as d:

@@ -15,3 +15,7 @@ data/private/
 # Wochen-Medien (Fotos, Videos, eigene Fotos, Bildliste) – nur lokal
 medien/*
 !medien/README.md
+
+# erzeugte Videos und Vorschauen (gross, jederzeit neu renderbar)
+output/**/*.mp4
+output/_vorschau/
