@@ -21,6 +21,14 @@ Bild- und Video-KIs setzen jedes erwähnte Element wörtlich ins Bild, auch wenn
 - Allgemein: nichts nur andeuten, was als Gegenstand gezeichnet werden könnte (Gefahr, Feuer, Wasser auf dem Boden, Rauch). Lieber weglassen als missverständlich.
 `scripts/qa_check.py` prüft das (FAIL bei neuen Prompts).
 
+## Aufhängung sichtbar: nichts schwebt (Lernregel 20.11.2026)
+Alles, was hängt, braucht im Prompt eine **sichtbare, benannte Aufhängung**, sonst zeichnet die KI es frei schwebend (KW48-F13: Schaukel ohne Gerüst).
+- Schaukel: `a wooden A-frame swing set … the crossbeam on top is clearly visible, the swing hangs from two chains attached to that crossbeam` (oder ein dicker Ast eines Baums, sichtbar).
+- Lampen: `hangs on a cord from the ceiling`; Papiersterne, Girlanden, Lichterketten: an Haken, Fensterrahmen oder Kordel befestigt bzw. `draped along …`.
+- Kleidung, Taschen, Säckchen: an Haken, Bügel, Stange, Wäscheständer oder Ast; Vorhänge an einer Stange; Bilder mit Nagel, Klebeband oder Klammer.
+- Steht die Aufhängung am Bildrand, so beschreiben, dass sie erkennbar bleibt und die Textfläche oben trotzdem ruhig ist.
+`scripts/qa_check.py` warnt, wenn ein Satz mit „hang/hanging/swing“ keine Aufhängung nennt.
+
 ## Midjourney-Prompt (Englisch)
 - **Die Frau:** Wo es zur Szene passt (etwa jedes 2. Motiv, nie beide Karussell-Fotos eines Tages), darf die wiederkehrende Frau vorkommen – immer dieselbe, **nur von hinten**, Beschreibung wörtlich: `the same woman, seen only from behind: fair skin, shoulder-length straight medium-brown hair, slim build of average height; her face is never visible, no profile, she is turned away from the camera`. Die **Kleidung darf variieren** – direkt nach der Beschreibung nennen (z. B. „, wearing an oatmeal linen shirt“), Erdtöne, keine Logos, keine grellen Muster. Sie darf etwas tun (Tee halten, aus dem Fenster schauen, schreiben, am Strand gehen); ihre Hände dürfen dabei sichtbar sein, nie ihr Gesicht. Sonst „No people“. Keine weiteren Personen, keine Kinder.
 - Jeder Prompt enthält wörtlich **„no text, no logos“**.

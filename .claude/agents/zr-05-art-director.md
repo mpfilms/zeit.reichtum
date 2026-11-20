@@ -65,5 +65,8 @@ Du bekommst die Ausgabe von `media.py pick <SLOT>` (Pool-IDs mit Ort; bei Reels 
 - **Begründung:** ein kurzer Satz, warum die Medien zum Post passen (bei Story ggf. welches eigene Foto ergänzt)
 ```
 
+## Aufhängung sichtbar
+Plane bei allem, was hängt (Schaukel, Lampe, Papierstern, Lichterkette, Jacke, Vorhang), die Aufhängung mit: Gerüst mit Querbalken, Ast, Decke mit Kabel, Haken, Stange. Nichts darf frei schweben (KW48-F13).
+
 ## Licht und Feuer
 Plane Lichtquellen immer als sichtbares Objekt (Lampe, Kerze im Halter, Kamin hinter Glastür). Keine Stimmungen wie „Feuerschein“, „Kaminknistern“ ohne sichtbaren Kamin: Bild-KIs zeichnen das wörtlich (T04-R1: Flammen hinter dem Sofa). Details: Agent 6, Abschnitt „Licht und Feuer“.

@@ -159,10 +159,24 @@ def check_fire(R, g, p, label="", strict=True):
         R.fail(g, f"{label}Bei Kerzen/Feuer fehlt der Schutzsatz '...{FIRE_GUARD}...' (z. B. 'The flame stays only inside the candle, nothing else is burning.')")
 
 
+HANG_RE = re.compile(r"\b(hangs?|hanging|hung|suspended|dangl\w*|swings?)\b", re.I)
+HANG_ANCHOR_RE = re.compile(r"\b(beams?|crossbeam|(a-|swing )frame|frames?|ceiling|hooks?|rods?|rails?|racks?|"
+                            r"branch\w*|tree|nails?|pegs?|hangers?|bars?|clothesline|line|clips?|stand|over|draped|"
+                            r"mounted)\b", re.I)
+
+
+def check_hanging(R, g, p, label=""):
+    """Lernregel 20.11.2026: Was hängt, braucht eine sichtbare Aufhängung (KW48-F13: Schaukel ohne Gerüst)."""
+    for sent in re.split(r"(?<=[.!?])\s+", p):
+        if HANG_RE.search(sent) and not HANG_ANCHOR_RE.search(sent):
+            R.warn(g, f"{label}Hängt etwas ohne sichtbare Aufhängung? „{sent.strip()[:80]}“ – Gerüst, Haken, Stange oder Decke nennen")
+
+
 def check_image_prompt(R, g, p, label="", strict=False, fire_strict=True):
     p = p.strip()
     check_figure_and_text(R, g, p, label, strict)
     check_fire(R, g, p, label, fire_strict)
+    check_hanging(R, g, p, label)
     if p.count(IMG_FORMULA) != 1:
         R.fail(g, f"{label}Bild-Formel nicht (genau einmal) wörtlich im Midjourney-Prompt")
     else:
@@ -179,6 +193,7 @@ def check_image_prompt(R, g, p, label="", strict=False, fire_strict=True):
 def check_video_prompt(R, g, b, label="", strict=False, fire_strict=True):
     check_figure_and_text(R, g, b, label, strict)
     check_fire(R, g, b, label, fire_strict)
+    check_hanging(R, g, b, label)
     if not b.strip().endswith(VID_FORMULA):
         R.fail(g, f"{label}Motion-Prompt endet nicht wörtlich mit der Video-Formel")
     if re.search(r"camera (move|pan|zoom|dolly|tilt)", b.lower()):

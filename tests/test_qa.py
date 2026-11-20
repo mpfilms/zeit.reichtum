@@ -238,3 +238,22 @@ class Scripts(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAufhaengung(unittest.TestCase):
+    """Lernregel 20.11.2026: Was hängt, braucht eine sichtbare Aufhängung (KW48-F13)."""
+    def _warns(self, text):
+        class R:
+            def __init__(self): self.w = []
+            def warn(self, g, m): self.w.append(m)
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import qa_check
+        r = R()
+        qa_check.check_hanging(r, None, text)
+        return r.w
+
+    def test_schaukel_ohne_geruest_warnt(self):
+        self.assertTrue(self._warns("An empty wooden swing hangs still on its chains."))
+
+    def test_schaukel_mit_querbalken_ok(self):
+        self.assertFalse(self._warns("The swing hangs from two chains attached to the visible crossbeam."))
