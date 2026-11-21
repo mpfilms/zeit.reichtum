@@ -11,7 +11,7 @@
 publish_queue an (sql/publish_queue.sql). `run` läuft in GitHub Actions (.github/workflows/publish.yml): holt fällige
 Zeilen, markiert sie atomar als „running“ (kein Doppelpost), veröffentlicht mit den Funktionen aus publish.py,
 löscht danach die Dateien. Fehler vor dem Posten werden bis zu 3 Mal wiederholt; schon veröffentlichte Ziele
-(Instagram/Facebook) werden bei einer Wiederholung übersprungen. Eingeplante Zeit älter als 3 Stunden = „verpasst“.
+(Instagram/Facebook) werden bei einer Wiederholung übersprungen. Eingeplante Zeit älter als 12 Stunden = „verpasst“.
 Gibt nie einen Schlüssel oder Token aus.
 """
 import argparse
@@ -35,7 +35,7 @@ except Exception:  # pragma: no cover
 
 TABLE = "publish_queue"
 MAX_VERSUCHE = 3
-VERPASST_STUNDEN = 3
+VERPASST_STUNDEN = 12  # GitHub startet geplante Läufe oft Stunden zu spät; lieber verspätet posten als gar nicht
 
 
 # ---------- Supabase REST ----------
